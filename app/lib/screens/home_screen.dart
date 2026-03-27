@@ -116,6 +116,110 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── ADD MEDICINE BOTTOM SHEET ───────────────────
+  void _showAddMedicineSheet() {
+    final nameController = TextEditingController();
+    final dosageController = TextEditingController();
+    TimeOfDay selectedTime = TimeOfDay.now();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24, right: 24, top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Add New Medicine', 
+                    style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                  const SizedBox(height: 20),
+                  
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Medicine Name',
+                      hintText: 'e.g. Vitamin D3',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  TextField(
+                    controller: dosageController,
+                    decoration: InputDecoration(
+                      labelText: 'Dosage',
+                      hintText: 'e.g. 1 Tablet / 10ml',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Reminder Time', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(color: AppColors.blueLight, borderRadius: BorderRadius.circular(12)),
+                      child: Text(selectedTime.format(context), 
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: AppColors.bluePrimary)),
+                    ),
+                    onTap: () async {
+                      final time = await showTimePicker(context: context, initialTime: selectedTime);
+                      if (time != null) setModalState(() => selectedTime = time);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.bluePrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () async {
+                        if (nameController.text.isEmpty) return;
+                        
+                        // Save to Firebase
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc('user_123')
+                            .collection('medications')
+                            .add({
+                              'name': nameController.text.trim(),
+                              'dosage': dosageController.text.trim(),
+                              'time': selectedTime.format(context),
+                              'status': 'upcoming',
+                            });
+
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: Text('Add to Schedule', 
+                        style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
   Widget _sosBullet(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -130,6 +234,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddMedicineSheet, // This calls the function we just created
+        backgroundColor: AppColors.bluePrimary,
+        elevation: 4,
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      ),
       body: FadeTransition(
         opacity: _fadeAnim,
         child: CustomScrollView(
