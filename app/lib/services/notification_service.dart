@@ -74,6 +74,7 @@ class NotificationService {
 
     final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
+    // ── 1. THE MAIN ALARM (Relentless) ──
     await _notificationsPlugin.zonedSchedule(
       id,
       '💊 Time for your Medicine!',
@@ -83,8 +84,29 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, 
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, 
-      // ── NEW: Passes the medicine name and dosage to the Red Screen ──
-      payload: '$name|$dosage', 
+      payload: '$name|$dosage|$id', // Added the ID so we know which one to cancel
+    );
+
+    // ── 2. THE CAREGIVER SOS (Dead Man's Switch) ──
+    // We schedule this for exactly 5 minutes AFTER the main alarm
+    final sosTime = scheduledDate.add(const Duration(minutes: 5));
+    
+    const AndroidNotificationDetails sosDetails = AndroidNotificationDetails(
+      'sos_channel', 
+      'Emergency Alerts',
+      importance: Importance.max,
+      priority: Priority.high,
+      color: Colors.red, // Makes the notification red
+    );
+
+    await _notificationsPlugin.zonedSchedule(
+      id + 100000, // We offset the ID so it doesn't overwrite the main alarm
+      '🚨 CAREGIVER ALERT',
+      'Patient has not acknowledged their $dosage of $name!',
+      tz.TZDateTime.from(sosTime, tz.local),
+      const NotificationDetails(android: sosDetails),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 }

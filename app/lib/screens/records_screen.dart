@@ -1,242 +1,112 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart'; // We use this to format the timestamps nicely
 import '../theme/app_theme.dart';
-import '../models/models.dart';
-import '../widgets/common_widgets.dart';
 
-class RecordsScreen extends StatefulWidget {
+class RecordsScreen extends StatelessWidget {
   const RecordsScreen({super.key});
-
-  @override
-  State<RecordsScreen> createState() => _RecordsScreenState();
-}
-
-class _RecordsScreenState extends State<RecordsScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _query = '';
-  RecordCategory? _selectedCategory;
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  List<HealthRecord> get _filtered {
-    return DummyData.records.where((r) {
-      final matchSearch = _query.isEmpty || r.name.toLowerCase().contains(_query.toLowerCase());
-      final matchCat = _selectedCategory == null || r.category == _selectedCategory;
-      return matchSearch && matchCat;
-    }).toList();
-  }
-
-  final List<_FolderItem> _folders = [
-    const _FolderItem(emoji: '🩸', name: 'Blood Tests', count: 4, category: RecordCategory.bloodTest, bg: AppColors.redLight),
-    const _FolderItem(emoji: '📜', name: 'Prescriptions', count: 7, category: RecordCategory.prescription, bg: AppColors.blueLight),
-    const _FolderItem(emoji: '🫁', name: 'X-Rays & Scans', count: 2, category: RecordCategory.xray, bg: AppColors.greenLight),
-    const _FolderItem(emoji: '💉', name: 'Vaccination', count: 3, category: RecordCategory.vaccination, bg: AppColors.orangeLight),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _buildHeader()),
-          SliverPadding(
-            padding: const EdgeInsets.all(18),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const SectionHeader(title: 'Folders'),
-                _buildFolderGrid(),
-                const SizedBox(height: 20),
-                SectionHeader(
-                  title: 'Recent Files',
-                  actionLabel: 'View All',
-                  onAction: () => setState(() => _selectedCategory = null),
-                ),
-                ..._filtered.map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _FileRow(record: r),
-                )),
-                const SizedBox(height: 10),
-                _buildUploadButton(),
-                const SizedBox(height: 80),
-              ]),
-            ),
-          ),
-        ],
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Medication History', 
+          style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary)
+        ),
       ),
-    );
-  }
+      // ── StreamBuilder constantly listens to Firebase for new logs ──
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc('user_123')
+            .collection('history')
+            .orderBy('taken_at', descending: true) // Shows newest first!
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.bluePrimary));
+          }
 
-  Widget _buildHeader() {
-    return GradientHeader(
-      colors: const [AppColors.greenDark, AppColors.greenPrimary],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Health Records 🗂️',
-              style: GoogleFonts.nunito(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-          Text('Your secure digital health locker',
-              style: GoogleFonts.nunito(color: Colors.white.withOpacity(0.75), fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.25)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-            child: Row(
-              children: [
-                const Text('🔍', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (v) => setState(() => _query = v),
-                    style: GoogleFonts.nunito(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                    decoration: InputDecoration(
-                      hintText: 'Search records...',
-                      hintStyle: GoogleFonts.nunito(color: Colors.white.withOpacity(0.6), fontSize: 14),
-                      border: InputBorder.none,
-                      filled: false,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Text('No history yet.\nTake a pill to see it here!', 
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(fontSize: 18, color: AppColors.textMuted, fontWeight: FontWeight.w600)
+              ),
+            );
+          }
+
+          final logs = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: logs.length,
+            itemBuilder: (context, index) {
+              final log = logs[index].data() as Map<String, dynamic>;
+              final name = log['name'] ?? 'Unknown';
+              final dosage = log['dosage'] ?? '';
+              final status = log['status'] ?? 'Taken';
+              
+              // Safely handle the Firebase timestamp
+              String timeString = "Just now";
+              if (log['taken_at'] != null) {
+                final DateTime date = (log['taken_at'] as Timestamp).toDate();
+                timeString = DateFormat('MMM d, h:mm a').format(date); // e.g., "Mar 27, 5:45 PM"
+              }
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: AppColors.bluePrimary.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Green Checkmark Icon
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle, color: Colors.green, size: 28),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    
+                    // Medicine Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                          Text(dosage, style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    
+                    // Timestamp
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(status, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.green)),
+                        const SizedBox(height: 4),
+                        Text(timeString, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFolderGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12, mainAxisSpacing: 12,
-      childAspectRatio: 1.3,
-      children: _folders.map((f) => GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() {
-            _selectedCategory = _selectedCategory == f.category ? null : f.category;
-          });
+              );
+            },
+          );
         },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _selectedCategory == f.category ? f.bg.withOpacity(0.8) : AppColors.card,
-            borderRadius: BorderRadius.circular(kRadius),
-            border: Border.all(
-              color: _selectedCategory == f.category
-                  ? DummyData.records.firstWhere((r) => r.category == f.category, orElse: () => DummyData.records.first).categoryColor.withOpacity(0.5)
-                  : Colors.transparent,
-              width: 2,
-            ),
-            boxShadow: cardShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(f.emoji, style: const TextStyle(fontSize: 30)),
-              const SizedBox(height: 8),
-              Text(f.name,
-                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              Text('${f.count} files',
-                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-            ],
-          ),
-        ),
-      )).toList(),
-    );
-  }
-
-  Widget _buildUploadButton() {
-    return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('📤 Upload dialog opening...',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: AppColors.bluePrimary,
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 22),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(kRadius),
-          border: Border.all(color: AppColors.border, width: 2, style: BorderStyle.solid),
-        ),
-        child: Column(
-          children: [
-            const Text('⬆️', style: TextStyle(fontSize: 24)),
-            const SizedBox(height: 6),
-            Text('Upload New Record',
-                style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FolderItem {
-  final String emoji, name;
-  final int count;
-  final RecordCategory category;
-  final Color bg;
-  const _FolderItem({required this.emoji, required this.name, required this.count, required this.category, required this.bg});
-}
-
-// ─── File Row ─────────────────────────────────────
-class _FileRow extends StatelessWidget {
-  final HealthRecord record;
-  const _FileRow({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd MMM yyyy');
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('📄 Opening ${record.name}...', style: GoogleFonts.nunito(fontWeight: FontWeight.w700))),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: record.categoryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Text(record.categoryEmoji, style: const TextStyle(fontSize: 22))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(record.name,
-                    style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text('${record.categoryLabel} · ${dateFormat.format(record.uploadedDate)} · ${record.fileSizeMb} MB',
-                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-        ],
       ),
     );
   }
