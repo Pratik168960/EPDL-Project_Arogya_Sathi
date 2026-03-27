@@ -1,4 +1,5 @@
 
+import 'services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // Add this exact line
 import 'package:flutter/material.dart';
@@ -17,6 +18,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await NotificationService.initialize();
 
   // ... (leave the rest of the code below here exactly as it is)
 
@@ -37,6 +40,9 @@ void main() async {
   runApp(const ArogyasathiApp());
 }
 
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class ArogyasathiApp extends StatelessWidget {
   const ArogyasathiApp({super.key});
 
@@ -45,6 +51,7 @@ class ArogyasathiApp extends StatelessWidget {
     return MaterialApp(
       title: 'Arogyasathi',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey, // ADD THIS LINE HERE
       theme: AppTheme.lightTheme,
       home: const MainShell(),
     );

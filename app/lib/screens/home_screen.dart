@@ -1,3 +1,5 @@
+
+import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -192,17 +194,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       onPressed: () async {
                         if (nameController.text.isEmpty) return;
                         
-                        // Save to Firebase
+                        final medName = nameController.text.trim();
+                        final medDosage = dosageController.text.trim();
+
+                        // 1. Save to Firebase
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc('user_123')
                             .collection('medications')
                             .add({
-                              'name': nameController.text.trim(),
-                              'dosage': dosageController.text.trim(),
+                              'name': medName,
+                              'dosage': medDosage,
                               'time': selectedTime.format(context),
                               'status': 'upcoming',
                             });
+
+                        // 2. SCHEDULE THE LOCAL ALARM!
+                        // We use a random ID based on milliseconds so every alarm is unique
+                        await NotificationService.scheduleMedicineNotification(
+                          id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+                          name: medName,
+                          dosage: medDosage,
+                          time: selectedTime,
+                        );
 
                         if (mounted) Navigator.pop(context);
                       },
