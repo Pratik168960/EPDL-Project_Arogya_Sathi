@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589265508739",
+    "project_id": "arogyasathi-7f2c1",
+    "storage_bucket": "arogyasathi-7f2c1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589265508739:android:5895db23d9dc4893d07eb6",
+        "android_client_info": {
+          "package_name": "com.example.arogyasathi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFjYgUXLkj9QtnhmsY8wtyEPPw_lRRphg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
