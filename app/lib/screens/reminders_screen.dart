@@ -4,12 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../services/notification_service.dart';
+import '../services/auth_service.dart'; // <-- ADDED THIS IMPORT
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/common_widgets.dart';
 
 // ═══════════════════════════════════════════════
-//  REMINDERS SCREEN — StatefulWidget (toggles work)
+//  REMINDERS SCREEN — LIVE FIREBASE STREAM
 // ═══════════════════════════════════════════════
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -22,12 +23,7 @@ class _RemindersScreenState extends State<RemindersScreen>
     with TickerProviderStateMixin {
 
   // Local reminder toggle state per med id
-  final Map<String, bool> _toggleState = {
-    'med_001': true,
-    'med_002': true,
-    'med_003': false,
-    'med_004': true,
-  };
+  final Map<String, bool> _toggleState = {};
 
   int _waterCount = DummyData.waterGlassesDone;
   final int _waterGoal = DummyData.waterGlassesGoal;
@@ -48,8 +44,6 @@ class _RemindersScreenState extends State<RemindersScreen>
     _ringCtrl.dispose();
     super.dispose();
   }
-
-  int get _takenToday => DummyData.medications.where((m) => m.status == MedStatus.taken).length;
 
   // ── OPEN ADD MEDICINE SHEET ──
   void _openAddSheet() {
@@ -81,7 +75,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     Text('Medicine Reminders',
                         style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
                     const SizedBox(height: 4),
-                    Text('${DummyData.medications.length} medicines · $_takenToday taken today',
+                    Text('Live Schedule',
                         style: GoogleFonts.outfit(fontSize: 12, color: Colors.white38)),
                     const SizedBox(height: 16),
 
@@ -111,7 +105,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                                 style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, height: 1)),
                             Text('Weekly Adherence',
                                 style: GoogleFonts.outfit(fontSize: 11, color: Colors.white54, height: 1.4)),
-                            Text('15 of 20 doses · Today: $_takenToday / ${DummyData.medications.length}',
+                            Text('Based on recent history',
                                 style: GoogleFonts.outfit(fontSize: 10, color: Colors.white30)),
                           ]),
                         ),
@@ -158,7 +152,9 @@ class _RemindersScreenState extends State<RemindersScreen>
                 Text("Today's Schedule",
                     style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 const SizedBox(height: 12),
-                ..._buildScheduleList(),
+                
+                _buildScheduleList(), // <-- NOW CALLS THE FIREBASE STREAM!
+                
                 const SizedBox(height: 24),
 
                 // Water goal
@@ -178,87 +174,86 @@ class _RemindersScreenState extends State<RemindersScreen>
     );
   }
 
-  List<Widget> _buildScheduleList() {
-    return DummyData.medications.map((med) {
-      final isOn = _toggleState[med.id] ?? med.reminderEnabled;
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(kRadius),
-          boxShadow: AppColors.cardShadow,
-          border: Border(left: BorderSide(color: isOn ? med.color : AppColors.border, width: 3)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Row(children: [
-            // Time
-            SizedBox(
-              width: 56,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  med.time.format(context).split(' ')[0],
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal),
-                ),
-                Text(
-                  med.time.format(context).length > 5 ? med.time.format(context).split(' ')[1] : '',
-                  style: GoogleFonts.outfit(fontSize: 9, color: AppColors.textMuted),
-                ),
-              ]),
-            ),
-            Container(width: 1, height: 30, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 10)),
-            // Med info
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(med.name,
-                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
-                        color: isOn ? AppColors.textPrimary : AppColors.textMuted)),
-                Text('${med.dosage} · ${med.mealInstruction}',
-                    style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-              ]),
-            ),
-            // Status badge
-            _medStatusBadge(med.status),
-            const SizedBox(width: 10),
-            // Toggle — WORKING STATE
-            Switch.adaptive(
-              value: isOn,
-              onChanged: (val) {
-                HapticFeedback.selectionClick();
-                setState(() => _toggleState[med.id] = val);
-              },
-              activeColor: Colors.white,
-              activeTrackColor: AppColors.teal,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: AppColors.border,
-            ),
-          ]),
-        ),
-      );
-    }).toList();
-  }
+  // ── THE LIVE FIREBASE SCHEDULE ──
+  Widget _buildScheduleList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId!).collection('medications').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.teal));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: Text('No medicines scheduled.', style: GoogleFonts.outfit(color: AppColors.textMuted))),
+          );
+        }
 
-  Widget _medStatusBadge(MedStatus status) {
-    switch (status) {
-      case MedStatus.taken:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: AppColors.successBg, borderRadius: BorderRadius.circular(20)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.check, size: 10, color: AppColors.success),
-            const SizedBox(width: 3),
-            Text('Taken', style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.success)),
-          ]),
+        return Column(
+          children: snapshot.data!.docs.map((doc) {
+            final med = doc.data() as Map<String, dynamic>;
+            final isOn = _toggleState[doc.id] ?? true; // Default toggle to ON
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(kRadius),
+                boxShadow: AppColors.cardShadow,
+                border: Border(left: BorderSide(color: isOn ? AppColors.teal : AppColors.border, width: 3)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(children: [
+                  // Time
+                  SizedBox(
+                    width: 56,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(
+                        med['time'] != null ? med['time'].split(' ')[0] : '--:--',
+                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal),
+                      ),
+                      Text(
+                        med['time'] != null && med['time'].toString().length > 5 ? med['time'].split(' ')[1] : '',
+                        style: GoogleFonts.outfit(fontSize: 9, color: AppColors.textMuted),
+                      ),
+                    ]),
+                  ),
+                  Container(width: 1, height: 30, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 10)),
+                  // Med info
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(med['name'] ?? 'Unknown',
+                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                              color: isOn ? AppColors.textPrimary : AppColors.textMuted)),
+                      Text('${med['dosage'] ?? ''}',
+                          style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
+                    ]),
+                  ),
+                  // Toggle Switch
+                  Switch.adaptive(
+                    value: isOn,
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _toggleState[doc.id] = val);
+                      
+                      // Cancel the alarm if toggled off!
+                      if (val == false && med.containsKey('alarm_id')) {
+                         NotificationService.cancelSpecificAlarm(med['alarm_id']);
+                      }
+                    },
+                    activeColor: Colors.white,
+                    activeTrackColor: AppColors.teal,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: AppColors.border,
+                  ),
+                ]),
+              ),
+            );
+          }).toList(),
         );
-      case MedStatus.missed:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(20)),
-          child: Text('Missed', style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.danger)),
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+      },
+    );
   }
 
   Widget _buildWaterSection() {
@@ -356,7 +351,6 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
     final timeStr = '${_time.hourOfPeriod}:${_time.minute.toString().padLeft(2, '0')} ${_time.period.name.toUpperCase()}';
 
     try {
-      // *** THE FIX: Using our updated, Relentless Notification Function! ***
       final alarmId = DateTime.now().millisecondsSinceEpoch % 100000;
 
       await NotificationService.scheduleMedicineNotification(
@@ -366,9 +360,10 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
         time: _time,
       );
 
+      // *** THE FIX: REMOVED QUOTES AROUND AuthService.currentUserId! ***
       await FirebaseFirestore.instance
           .collection('users')
-          .doc('user_123')
+          .doc(AuthService.currentUserId!)
           .collection('medications')
           .add({
             'name':      _nameCtrl.text.trim(),

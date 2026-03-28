@@ -339,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc('user_123')
+          .doc('AuthService.currentUserId!')
           .collection('medications')
           .snapshots(),
       builder: (context, snapshot) {
@@ -383,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // *** FIREBASE DELETE — PRESERVED ***
                   await FirebaseFirestore.instance
                       .collection('users')
-                      .doc('user_123')
+                      .doc('AuthService.currentUserId!')
                       .collection('medications')
                       .doc(doc.id)
                       .delete();

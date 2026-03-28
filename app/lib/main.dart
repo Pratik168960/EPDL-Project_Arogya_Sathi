@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -46,7 +48,22 @@ class ArogyasathiApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       theme: AppTheme.lightTheme,
-      home: const MainShell(),
+      // ── THE AUTH ROUTER ──
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // If Firebase is checking...
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(backgroundColor: AppColors.navy, body: Center(child: CircularProgressIndicator(color: AppColors.teal)));
+          }
+          // If user is logged in, show the Dashboard
+          if (snapshot.hasData) {
+            return const MainShell();
+          }
+          // Otherwise, show Login Screen
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
