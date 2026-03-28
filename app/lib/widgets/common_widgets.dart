@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
-// ─── Section Header ────────────────────────────────
+// ═══════════════════════════════════════════════
+//  AROGYASATHI — SHARED WIDGET LIBRARY
+// ═══════════════════════════════════════════════
+
+// ── Section Header ────────────────────────────────
 class SectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
@@ -21,22 +25,26 @@ class SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(title,
-              style: GoogleFonts.nunito(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              )),
-          if (actionLabel != null)
+          Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.1,
+            ),
+          ),
+          if (actionLabel != null && actionLabel!.isNotEmpty)
             GestureDetector(
               onTap: onAction,
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.nunito(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.bluePrimary,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.teal,
                 ),
               ),
             ),
@@ -46,7 +54,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── App Card ──────────────────────────────────────
+// ── App Card ──────────────────────────────────────
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets? padding;
@@ -65,26 +73,23 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color ?? AppColors.card,
-          borderRadius: BorderRadius.circular(radius),
-          boxShadow: cardShadow,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              splashColor: AppColors.bluePrimary.withOpacity(0.05),
-              child: Padding(
-                padding: padding ?? const EdgeInsets.all(16),
-                child: child,
-              ),
-            ),
+    return Material(
+      color: color ?? AppColors.card,
+      borderRadius: BorderRadius.circular(radius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        splashColor: AppColors.teal.withOpacity(0.04),
+        highlightColor: AppColors.teal.withOpacity(0.02),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            boxShadow: AppColors.cardShadow,
+            border: Border.all(color: AppColors.border.withOpacity(0.5), width: 0.5),
+          ),
+          child: Padding(
+            padding: padding ?? const EdgeInsets.all(16),
+            child: child,
           ),
         ),
       ),
@@ -92,7 +97,7 @@ class AppCard extends StatelessWidget {
   }
 }
 
-// ─── Status Badge ──────────────────────────────────
+// ── Status Pill ───────────────────────────────────
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color background;
@@ -108,79 +113,55 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
-        style: GoogleFonts.nunito(
+        style: GoogleFonts.outfit(
           fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           color: textColor,
+          letterSpacing: 0.1,
         ),
       ),
     );
   }
 }
 
-// ─── Gradient Header ───────────────────────────────
-class GradientHeader extends StatelessWidget {
-  final Widget child;
-  final List<Color> colors;
-  final EdgeInsets? padding;
+// ── Navy Section Header (full-width label) ─────────
+class NavySectionLabel extends StatelessWidget {
+  final String label;
 
-  const GradientHeader({
-    super.key,
-    required this.child,
-    required this.colors,
-    this.padding,
-  });
+  const NavySectionLabel({super.key, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      padding: padding ?? const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      child: Stack(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // decorative circles
-          Positioned(
-            top: -30, right: -30,
-            child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                shape: BoxShape.circle,
-              ),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+              letterSpacing: 1.0,
             ),
           ),
-          Positioned(
-            bottom: -20, left: 20,
-            child: Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          child,
+          const SizedBox(height: 6),
+          Container(height: 1, color: AppColors.divider),
         ],
       ),
     );
   }
 }
 
-// ─── Pill Toggle ───────────────────────────────────
+// ── Pill Toggle (custom animated switch) ──────────
 class PillToggle extends StatefulWidget {
   final bool initialValue;
   final ValueChanged<bool>? onChanged;
@@ -212,7 +193,7 @@ class _PillToggleState extends State<PillToggle> {
         width: 44,
         height: 26,
         decoration: BoxDecoration(
-          color: _value ? AppColors.greenPrimary : AppColors.border,
+          color: _value ? AppColors.teal : AppColors.border,
           borderRadius: BorderRadius.circular(13),
         ),
         child: AnimatedAlign(
@@ -221,18 +202,11 @@ class _PillToggleState extends State<PillToggle> {
           child: Padding(
             padding: const EdgeInsets.all(3),
             child: Container(
-              width: 20,
-              height: 20,
+              width: 20, height: 20,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 4, offset: const Offset(0, 1))],
               ),
             ),
           ),
@@ -242,7 +216,148 @@ class _PillToggleState extends State<PillToggle> {
   }
 }
 
-// ─── Water Cup Widget ──────────────────────────────
+// ── Vital Card ────────────────────────────────────
+class VitalCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String unit;
+  final String label;
+  final String subLabel;
+  final Color accent;
+  final Color accentBg;
+
+  const VitalCard({
+    super.key,
+    required this.icon,
+    required this.value,
+    required this.unit,
+    required this.label,
+    required this.subLabel,
+    required this.accent,
+    required this.accentBg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(kRadius),
+        boxShadow: AppColors.cardShadow,
+        border: Border(left: BorderSide(color: accent, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(color: accentBg, borderRadius: BorderRadius.circular(kRadiusSm)),
+            child: Icon(icon, color: accent, size: 16),
+          ),
+          const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
+                  )),
+              if (unit.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 2, bottom: 2),
+                  child: Text(unit,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      )),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              )),
+          Text(subLabel,
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Quick Action Button ───────────────────────────
+class QuickActionItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color bgColor;
+  final Color iconColor;
+  final VoidCallback onTap;
+  // Legacy emoji param kept for compat but ignored
+  final String? emoji;
+
+  const QuickActionItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.bgColor,
+    required this.iconColor,
+    required this.onTap,
+    this.emoji,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(kRadius),
+              boxShadow: AppColors.cardShadow,
+              border: Border.all(color: AppColors.border.withOpacity(0.6), width: 0.5),
+            ),
+            child: Center(
+              child: Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(kRadiusSm)),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Water Tracker Dot ─────────────────────────────
 class WaterCup extends StatelessWidget {
   final bool filled;
   final VoidCallback onTap;
@@ -254,31 +369,30 @@ class WaterCup extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 36,
-        height: 36,
+        duration: const Duration(milliseconds: 180),
+        width: 30, height: 30,
         decoration: BoxDecoration(
-          color: filled ? AppColors.blueLight : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          shape: BoxShape.circle,
+          color: filled ? AppColors.tealPale : Colors.transparent,
           border: Border.all(
-            color: filled ? AppColors.bluePrimary : AppColors.border,
-            width: 2,
+            color: filled ? AppColors.teal : AppColors.border,
+            width: 1.5,
           ),
         ),
-        child: Center(
-          child: Text(
-            '🥛',
-            style: TextStyle(fontSize: filled ? 20 : 18),
-          ),
+        child: Icon(
+          Icons.water_drop,
+          size: 14,
+          color: filled ? AppColors.teal : AppColors.border,
         ),
       ),
     );
   }
 }
 
-// ─── Stat Mini Card ────────────────────────────────
+// ── Stat Mini Card (legacy compat) ─────────────────
 class StatMiniCard extends StatelessWidget {
-  final String emoji;
+  final String emoji;          // kept for compat, not shown
+  final IconData? icon;
   final String value;
   final String unit;
   final String label;
@@ -287,7 +401,8 @@ class StatMiniCard extends StatelessWidget {
 
   const StatMiniCard({
     super.key,
-    required this.emoji,
+    this.emoji = '',
+    this.icon,
     required this.value,
     this.unit = '',
     required this.label,
@@ -296,121 +411,79 @@ class StatMiniCard extends StatelessWidget {
   });
 
   @override
-  @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(12), // Reduced from 16 to 12 to give text more room
-      child: Stack(
-        children: [
-          Positioned(
-            bottom: -10, right: -10,
-            child: Container(
-              width: 60, height: 60,
-              decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.07),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          FittedBox( // Wraps the column to scale it down slightly if it gets too tight
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // Stops vertical stretching
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 22)),
-                const SizedBox(height: 4), // Reduced spacing slightly
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(value,
-                        style: GoogleFonts.nunito(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
-                          height: 1,
-                        )),
-                    if (unit.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2, left: 1),
-                        child: Text(unit,
-                            style: GoogleFonts.nunito(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            )),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(label,
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    )),
-                Text(subLabel,
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
-                    )),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return VitalCard(
+      icon: icon ?? Icons.monitor_heart_outlined,
+      value: value,
+      unit: unit,
+      label: label,
+      subLabel: subLabel,
+      accent: accentColor,
+      accentBg: accentColor.withOpacity(0.1),
     );
   }
 }
 
-// ─── Quick Action Item ─────────────────────────────
-class QuickActionItem extends StatelessWidget {
-  final String emoji;
+// ── Horizontal Divider with Label ──────────────────
+class LabelledDivider extends StatelessWidget {
   final String label;
-  final Color bgColor;
-  final VoidCallback onTap;
+  const LabelledDivider({super.key, required this.label});
 
-  const QuickActionItem({
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(children: [
+        const Expanded(child: Divider(color: AppColors.divider, height: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(label,
+              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.8)),
+        ),
+        const Expanded(child: Divider(color: AppColors.divider, height: 1)),
+      ]),
+    );
+  }
+}
+
+// ── Profile Info Row ──────────────────────────────
+class ProfileInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  const ProfileInfoRow({
     super.key,
-    required this.emoji,
+    required this.icon,
     required this.label,
-    required this.bgColor,
-    required this.onTap,
+    required this.value,
+    this.onTap,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // Stops it from expanding infinitely
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: cardShadow,
-            ),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 26)),
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+        child: Row(children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(kRadiusSm)),
+            child: Icon(icon, size: 17, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              Text(value,  style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
+            ]),
           ),
-        ],
+          trailing ?? const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
+        ]),
       ),
     );
   }

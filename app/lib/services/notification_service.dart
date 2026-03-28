@@ -15,8 +15,18 @@ class NotificationService {
     await _notificationsPlugin.cancelAll();
   }
 
+  // ── 🎯 ADD THIS NEW BLOCK RIGHT HERE ──
+  // Kills a specific medicine alarm AND its SOS backup
+  static Future<void> cancelSpecificAlarm(int id) async {
+    await _notificationsPlugin.cancel(id); // Kills the main relentless alarm
+    await _notificationsPlugin.cancel(id + 100000); // Kills the 5-minute SOS backup
+  }
+  // ──────────────────────────────────────
+
   // 1. Initialize the plugin and ask for permissions
   static Future<void> initialize() async {
+  // ... (rest of your code stays exactly the same) ...
+
     tz.initializeTimeZones(); // Required for scheduling future alarms
 
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');

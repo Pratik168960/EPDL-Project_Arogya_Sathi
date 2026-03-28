@@ -1,7 +1,6 @@
-
 import 'services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Add this exact line
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,32 +13,26 @@ import 'screens/profile_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with your generated keys
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   await NotificationService.initialize();
 
-  // ... (leave the rest of the code below here exactly as it is)
-
-  // Lock to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // System UI styling
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.white,
+    systemNavigationBarColor: AppColors.white,
     systemNavigationBarIconBrightness: Brightness.dark,
   ));
 
   runApp(const ArogyasathiApp());
 }
-
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -51,14 +44,16 @@ class ArogyasathiApp extends StatelessWidget {
     return MaterialApp(
       title: 'Arogyasathi',
       debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey, // ADD THIS LINE HERE
+      navigatorKey: navigatorKey,
       theme: AppTheme.lightTheme,
       home: const MainShell(),
     );
   }
 }
 
-// ─── Main Shell with Bottom Nav ───────────────────
+// ═══════════════════════════════════════════════
+//  MAIN SHELL — INDEXED STACK NAVIGATION
+// ═══════════════════════════════════════════════
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -82,8 +77,8 @@ class _MainShellState extends State<MainShell> {
         children: [
           HomeScreen(
             onNavigateToReminders: () => _goTo(2),
-            onNavigateToRecords: () => _goTo(1),
-            onNavigateToProfile: () => _goTo(3),
+            onNavigateToRecords:   () => _goTo(1),
+            onNavigateToProfile:   () => _goTo(3),
           ),
           const RecordsScreen(),
           const RemindersScreen(),
@@ -96,26 +91,22 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildBottomNav() {
     const tabs = [
-      _NavTab(icon: '🏠', label: 'Home'),
-      _NavTab(icon: '📋', label: 'Records'),
-      _NavTab(icon: '💊', label: 'Reminders', badge: 1),
-      _NavTab(icon: '👤', label: 'Profile'),
+      _NavTab(icon: Icons.home_outlined,        activeIcon: Icons.home_rounded,         label: 'Home'),
+      _NavTab(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long_rounded, label: 'Records'),
+      _NavTab(icon: Icons.medication_outlined,   activeIcon: Icons.medication_rounded,   label: 'Reminders', badge: 1),
+      _NavTab(icon: Icons.person_outline,        activeIcon: Icons.person_rounded,       label: 'Profile'),
     ];
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.bluePrimary.withOpacity(0.08),
-            blurRadius: 20, offset: const Offset(0, -4),
-          ),
-        ],
-        border: const Border(top: BorderSide(color: AppColors.border, width: 1)),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        boxShadow: AppColors.navShadow,
+        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
       ),
       child: SafeArea(
+        top: false,
         child: SizedBox(
-          height: 80,
+          height: 64,
           child: Row(
             children: List.generate(tabs.length, (i) {
               final tab = tabs[i];
@@ -124,63 +115,57 @@ class _MainShellState extends State<MainShell> {
                 child: GestureDetector(
                   onTap: () => _goTo(i),
                   behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Active indicator
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: isActive ? 36 : 0,
-                          height: 3,
-                          decoration: const BoxDecoration(
-                            color: AppColors.bluePrimary,
-                            borderRadius: BorderRadius.vertical(bottom: Radius.circular(4)),
-                          ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Top indicator line
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        width: isActive ? 20 : 0,
+                        height: 2,
+                        margin: const EdgeInsets.only(bottom: 7),
+                        decoration: BoxDecoration(
+                          color: AppColors.teal,
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(2)),
                         ),
-                        const SizedBox(height: 6),
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 200),
-                              style: TextStyle(fontSize: isActive ? 24 : 22),
-                              child: Text(tab.icon),
-                            ),
-                            if (tab.badge != null)
-                              Positioned(
-                                top: -4, right: -8,
-                                child: Container(
-                                  width: 16, height: 16,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.redAlert,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${tab.badge}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
-                                    ),
-                                  ),
+                      ),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            isActive ? tab.activeIcon : tab.icon,
+                            size: 22,
+                            color: isActive ? AppColors.teal : AppColors.textMuted,
+                          ),
+                          if (tab.badge != null)
+                            Positioned(
+                              top: -3, right: -8,
+                              child: Container(
+                                width: 14, height: 14,
+                                decoration: BoxDecoration(
+                                  color: AppColors.danger,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 1.5),
+                                ),
+                                child: Center(
+                                  child: Text('${tab.badge}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
                                 ),
                               ),
-                          ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tab.label,
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          color: isActive ? AppColors.teal : AppColors.textMuted,
                         ),
-                        const SizedBox(height: 2),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 200),
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
-                            color: isActive ? AppColors.bluePrimary : AppColors.textMuted,
-                          ),
-                          child: Text(tab.label),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -193,7 +178,9 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _NavTab {
-  final String icon, label;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
   final int? badge;
-  const _NavTab({required this.icon, required this.label, this.badge});
+  const _NavTab({required this.icon, required this.activeIcon, required this.label, this.badge});
 }

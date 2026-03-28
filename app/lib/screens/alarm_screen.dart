@@ -1,9 +1,14 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 
+// ═══════════════════════════════════════════════
+//  ALARM SCREEN — Full-screen medication alert
+//  *** ALL FIREBASE IoT + HISTORY LOGIC PRESERVED ***
+// ═══════════════════════════════════════════════
 class AlarmScreen extends StatelessWidget {
   final String payload;
 
@@ -11,159 +16,205 @@ class AlarmScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Extract medicine name and dosage from payload
-    final parts = payload.split('|');
-    final name = parts.isNotEmpty ? parts[0] : 'Your Medicine';
-    final dosage = parts.length > 1 ? parts[1] : '';
+    // *** PAYLOAD PARSING — PRESERVED EXACTLY ***
+    final parts  = payload.split('|');
+    final name   = parts.isNotEmpty ? parts[0] : 'Your Medicine';
+    final dosage = parts.length > 1  ? parts[1] : '';
 
-    // Get current time formatted like "05:12"
-    final now = DateTime.now();
-    final timeString = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final now        = DateTime.now();
+    final timeString = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
-    return Scaffold(
-      body: Container(
-        // ── Calming Medical Gradient Background ──
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF00B4D8), // Vibrant cyan/teal
-              Color(0xFF0077B6), // Deep medical blue
-            ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.navy, Color(0xFF0D3B6E)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
-              
-              // ── Medical Icon ──
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.medication, size: 80, color: Colors.white),
-              ),
-              const SizedBox(height: 30),
-              
-              // ── The Giant Time ──
-              Text(timeString, 
-                style: GoogleFonts.nunito(
-                  fontSize: 90, 
-                  fontWeight: FontWeight.w900, 
-                  color: Colors.white,
-                  letterSpacing: -2,
-                  height: 1.0,
-                )
-              ),
-              const SizedBox(height: 10),
-              
-              Text('TIME FOR YOUR DOSE', 
-                style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white70, letterSpacing: 2)
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // ── The Medicine Details ──
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Text(name, 
-                      style: GoogleFonts.nunito(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0077B6)),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(dosage, 
-                      style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.grey[700]),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              
-              const Spacer(),
-              
-              // ── Single Giant "STOP" Button ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 80, // Massive touch target for elderly
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B4D8), // Matching medical teal
-                      foregroundColor: Colors.white,
-                      elevation: 8,
-                      shadowColor: Colors.black54,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40), // Pill shape
-                        side: const BorderSide(color: Colors.white, width: 2),
-                      ),
-                    ),
-                    icon: const Icon(Icons.check_circle, size: 36),
-                    label: Text('  I TOOK IT', 
-                      style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1)
-                    ),
-                    onPressed: () async {
-                      // 1. Defuse the alarms!
-                      NotificationService.cancelAll();
-                      
-                      // 2. The IoT Hardware Trigger!
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('hardware_control')
-                            .doc('esp32_dispenser_01')
-                            .set({
-                              'dispense_now': true,
-                              'medicine_dispensed': name,
-                              'timestamp': FieldValue.serverTimestamp(),
-                            }, SetOptions(merge: true));
-                            
-                        print("Hardware trigger sent to Firebase!");
-                      } catch (e) {
-                        print("Error sending to hardware: $e");
-                      }
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
 
-                      // 3. THE PERMANENT HISTORY LOG!
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc('user_123')
-                            .collection('history') 
-                            .add({
-                              'name': name,
-                              'dosage': dosage,
-                              'taken_at': FieldValue.serverTimestamp(),
-                              'status': 'Taken On Time',
-                            });
-                        print("History saved successfully!");
-                      } catch (e) {
-                        print("Error saving history: $e");
-                      }
-
-                      // 4. Return to the Home Screen
-                      if (context.mounted) Navigator.pop(context);
-                    },
+                  // ── Hospital cross icon ──
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.teal.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.teal.withOpacity(0.3), width: 1.5),
+                    ),
+                    child: const Icon(Icons.medication_rounded, size: 36, color: AppColors.tealLight),
                   ),
-                ),
-              )
-            ],
+                  const SizedBox(height: 8),
+                  Text('TIME FOR YOUR DOSE',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11, fontWeight: FontWeight.w700,
+                        color: AppColors.tealLight, letterSpacing: 2.5,
+                      )),
+                  const SizedBox(height: 24),
+
+                  // ── Giant time display ──
+                  Text(timeString,
+                      style: GoogleFonts.outfit(
+                        fontSize: 80, fontWeight: FontWeight.w700,
+                        color: Colors.white, letterSpacing: -3, height: 0.9,
+                      )),
+                  const Spacer(flex: 1),
+
+                  // ── Medicine card ──
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(kRadiusLg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 30, offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(children: [
+                      // Medicine icon row
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.tealPale,
+                            borderRadius: BorderRadius.circular(kRadius),
+                          ),
+                          child: const Icon(Icons.medication_outlined, color: AppColors.teal, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Prescribed Medication',
+                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted, letterSpacing: 0.5)),
+                          Text(name,
+                              style: GoogleFonts.outfit(
+                                fontSize: 22, fontWeight: FontWeight.w700,
+                                color: AppColors.navy, letterSpacing: -0.3,
+                              )),
+                        ]),
+                      ]),
+                      const SizedBox(height: 14),
+                      Container(
+                        height: 1, color: AppColors.divider,
+                      ),
+                      const SizedBox(height: 14),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                        _infoChip(Icons.scale_outlined,    dosage,        AppColors.tealPale,  AppColors.teal),
+                        _infoChip(Icons.schedule_outlined, timeString,    AppColors.blueLight, AppColors.bluePrimary),
+                        _infoChip(Icons.circle_outlined,   '1 Tablet',    AppColors.successBg, AppColors.success),
+                      ]),
+                    ]),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // ── Confirm button (LARGE for elderly) ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 68,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
+                        shadowColor: Colors.transparent,
+                      ),
+                      icon: const Icon(Icons.check_circle_outline, size: 28),
+                      label: Text('  I TOOK IT',
+                          style: GoogleFonts.outfit(
+                            fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+                          )),
+                      onPressed: () async {
+                        HapticFeedback.mediumImpact();
+
+                        // *** 1. CANCEL ALL ALARMS — PRESERVED ***
+                        NotificationService.cancelAll();
+
+                        // *** 2. IoT HARDWARE TRIGGER — PRESERVED EXACTLY ***
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('hardware_control')
+                              .doc('esp32_dispenser_01')
+                              .set({
+                                'dispense_now': true,
+                                'medicine_dispensed': name,
+                                'timestamp': FieldValue.serverTimestamp(),
+                              }, SetOptions(merge: true));
+                          debugPrint('Hardware trigger sent to Firebase!');
+                        } catch (e) {
+                          debugPrint('Error sending to hardware: $e');
+                        }
+
+                        // *** 3. PERMANENT HISTORY LOG — PRESERVED EXACTLY ***
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc('user_123')
+                              .collection('history')
+                              .add({
+                                'name': name,
+                                'dosage': dosage,
+                                'taken_at': FieldValue.serverTimestamp(),
+                                'status': 'Taken On Time',
+                              });
+                          debugPrint('History saved successfully!');
+                        } catch (e) {
+                          debugPrint('Error saving history: $e');
+                        }
+
+                        // *** 4. POP BACK — PRESERVED ***
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Snooze option
+                  TextButton.icon(
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.snooze_outlined, size: 18, color: Colors.white38),
+                    label: Text('Snooze 10 minutes',
+                        style: GoogleFonts.outfit(fontSize: 13, color: Colors.white38)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _infoChip(IconData icon, String label, Color bg, Color fg) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(kRadiusSm)),
+        child: Icon(icon, color: fg, size: 18),
+      ),
+      const SizedBox(height: 5),
+      Text(label,
+          style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+    ]);
   }
 }
