@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
@@ -89,104 +90,109 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
+      extendBody: true,
+      body: Stack(
         children: [
-          HomeScreen(
-            onNavigateToReminders: () => _goTo(2),
-            onNavigateToRecords:   () => _goTo(1),
-            onNavigateToProfile:   () => _goTo(3),
+          IndexedStack(
+            index: _currentIndex,
+            children: [
+              HomeScreen(
+                onNavigateToReminders: () => _goTo(1),
+                onNavigateToRecords:   () => _goTo(2),
+                onNavigateToProfile:   () => _goTo(3),
+              ),
+              const RemindersScreen(),
+              const RecordsScreen(),
+              const ProfileScreen(),
+            ],
           ),
-          const RecordsScreen(),
-          const RemindersScreen(),
-          const ProfileScreen(),
+          _buildBottomNav(),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   Widget _buildBottomNav() {
     const tabs = [
-      _NavTab(icon: Icons.home_outlined,        activeIcon: Icons.home_rounded,         label: 'Home'),
-      _NavTab(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long_rounded, label: 'Records'),
-      _NavTab(icon: Icons.medication_outlined,   activeIcon: Icons.medication_rounded,   label: 'Reminders', badge: 1),
-      _NavTab(icon: Icons.person_outline,        activeIcon: Icons.person_rounded,       label: 'Profile'),
+      _NavTab(icon: Icons.home_max, activeIcon: Icons.home_max, label: 'HOME'),
+      _NavTab(icon: Icons.medication_outlined, activeIcon: Icons.medication, label: 'MEDS', badge: 1),
+      _NavTab(icon: Icons.description_outlined, activeIcon: Icons.description, label: 'HEALTH'),
+      _NavTab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'PROFILE'),
     ];
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        boxShadow: AppColors.navShadow,
-        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: List.generate(tabs.length, (i) {
-              final tab = tabs[i];
-              final isActive = i == _currentIndex;
-              return Expanded(
-                child: GestureDetector(
+    return Positioned(
+      bottom: 0, left: 0, right: 0,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.only(top: 12, bottom: 24, left: 16, right: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xCCFFFFFF),
+              boxShadow: [
+                BoxShadow(color: Color(0x0F0F1C2C), offset: Offset(0, -8), blurRadius: 24),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(tabs.length, (i) {
+                final tab = tabs[i];
+                final isActive = i == _currentIndex;
+                return GestureDetector(
                   onTap: () => _goTo(i),
                   behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Top indicator line
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        width: isActive ? 20 : 0,
-                        height: 2,
-                        margin: const EdgeInsets.only(bottom: 7),
-                        decoration: BoxDecoration(
-                          color: AppColors.teal,
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(2)),
-                        ),
-                      ),
-                      Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            isActive ? tab.activeIcon : tab.icon,
-                            size: 22,
-                            color: isActive ? AppColors.teal : AppColors.textMuted,
-                          ),
-                          if (tab.badge != null)
-                            Positioned(
-                              top: -3, right: -8,
-                              child: Container(
-                                width: 14, height: 14,
-                                decoration: BoxDecoration(
-                                  color: AppColors.danger,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 1.5),
-                                ),
-                                child: Center(
-                                  child: Text('${tab.badge}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    transform: Matrix4.identity()..scale(isActive ? 1.05 : 1.0),
+                    transformAlignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              isActive ? tab.activeIcon : tab.icon,
+                              size: 26,
+                              color: isActive ? const Color(0xFF006399) : const Color(0xFF94A3B8).withOpacity(0.7),
+                            ),
+                            if (tab.badge != null)
+                              Positioned(
+                                top: -2, right: -4,
+                                child: Container(
+                                  width: 14, height: 14,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDC2626),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${tab.badge}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tab.label,
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive ? AppColors.teal : AppColors.textMuted,
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          tab.label,
+                          style: GoogleFonts.publicSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isActive ? const Color(0xFF006399) : const Color(0xFF94A3B8).withOpacity(0.7),
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ),
       ),

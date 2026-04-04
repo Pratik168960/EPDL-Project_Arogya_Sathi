@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/common_widgets.dart';
+import 'hardware_screen.dart';
 
 // ═══════════════════════════════════════════════
 //  PROFILE SCREEN
@@ -98,8 +99,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.white,
                     borderRadius: BorderRadius.circular(kRadius),
-                    boxShadow: AppColors.cardShadow,
-                    border: Border.all(color: AppColors.danger.withOpacity(0.1)),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+                    ],
                   ),
                   padding: const EdgeInsets.all(16),
                   child: Row(children: [
@@ -108,13 +110,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(kRadius)),
                       child: const Icon(Icons.emergency_share_outlined, color: AppColors.danger, size: 22),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(user.emergencyContactName,
-                            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                        const SizedBox(height: 4),
                         Text('${user.emergencyContactRelation} · ${user.emergencyContactPhone}',
-                            style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
+                            style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary)),
                       ]),
                     ),
                     ElevatedButton.icon(
@@ -128,21 +131,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
 
                 // Medical Reports & Documents
                 NavySectionLabel(label: 'MEDICAL REPORTS'),
                 Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.white,
                     borderRadius: BorderRadius.circular(kRadius),
-                    boxShadow: AppColors.cardShadow,
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+                    ],
                   ),
                   child: Column(children: [
                     _docRow(Icons.biotech_outlined,     'Blood_Test_Dec.pdf',   'Dec 2024',   AppColors.danger),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
+                    const SizedBox(height: 8),
                     _docRow(Icons.medical_information_outlined,   'Chest_XRay.jpg',       'Nov 2024',   AppColors.teal),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
+                    const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () => _snack('Upload new document'),
                       child: Padding(
@@ -155,13 +161,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(width: 12),
                           Text('Upload New',
-                              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                         ]),
                       ),
                     ),
                   ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
 
                 // Settings
                 NavySectionLabel(label: 'SETTINGS'),
@@ -172,9 +178,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     boxShadow: AppColors.cardShadow,
                   ),
                   child: Column(children: [
-                    // Language
+                    // Manage Hardware
                     InkWell(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(kRadius)),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HardwareScreen()),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(children: [
+                          Container(
+                            width: 34, height: 34,
+                            decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(kRadiusSm)),
+                            child: const Icon(Icons.devices_other_outlined, size: 17, color: AppColors.teal),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Manage Hardware',
+                                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                              Text('Bluetooth devices & settings',
+                                  style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
+                            ]),
+                          ),
+                          const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
+                        ]),
+                      ),
+                    ),
+                    const Divider(height: 1, color: AppColors.divider, indent: 16),
+
+                    // Language
+                    InkWell(
                       onTap: () {
                         setState(() => _language = _language == 'English' ? 'हिंदी' : 'English');
                         _snack('Language changed to $_language');
@@ -355,15 +393,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: AppColors.cardShadow,
+        boxShadow: const [
+          BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+        ],
       ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: rows.map((r) {
           final isLast = rows.last == r;
-          return Column(children: [
-            r,
-            if (!isLast) const Divider(height: 1, color: AppColors.divider, indent: 16),
-          ]);
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+            child: r,
+          );
         }).toList(),
       ),
     );

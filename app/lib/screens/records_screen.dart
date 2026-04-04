@@ -1,9 +1,11 @@
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -17,7 +19,7 @@ class RecordsScreen extends StatefulWidget {
 
 class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProviderStateMixin {
   late TabController _tab;
-  bool _isUploading = false; // Tracks upload state
+  bool _isUploading = false; 
 
   @override
   void initState() {
@@ -31,7 +33,7 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
     super.dispose();
   }
 
-  // ── THE FIREBASE STORAGE UPLOAD LOGIC ──
+  // ── THE NEW CLOUDINARY UPLOAD LOGIC ──
   Future<void> _uploadRecord() async {
     try {
       // 1. Open the phone's file picker
@@ -45,30 +47,46 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
         
         File file = File(result.files.single.path!);
         String fileName = result.files.single.name;
-        double fileSize = result.files.single.size / (1024 * 1024); // Convert bytes to MB
+        double fileSize = result.files.single.size / (1024 * 1024); 
         final uid = AuthService.currentUserId!;
 
-        // 2. Upload to Firebase Storage
-        final storageRef = FirebaseStorage.instance.ref().child('users/$uid/records/${DateTime.now().millisecondsSinceEpoch}_$fileName');
-        await storageRef.putFile(file);
+        // 2. Prepare the Cloudinary API Request
+        final cloudName = 'dpfatzeoo';
+        final uploadPreset = 'arogya_records';
         
-        // 3. Get the secure download link
-        final downloadUrl = await storageRef.getDownloadURL();
+        // Using 'auto' allows Cloudinary to handle both Images and PDFs automatically
+        final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/auto/upload');
+        
+        var request = http.MultipartRequest('POST', uri);
+        request.fields['upload_preset'] = uploadPreset;
+        request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-        // 4. Save the file information to Firestore so it shows in the app
-        await FirebaseFirestore.instance.collection('users').doc(uid).collection('records').add({
-          'name': fileName,
-          'url': downloadUrl,
-          'size_mb': double.parse(fileSize.toStringAsFixed(2)),
-          'uploaded_at': FieldValue.serverTimestamp(),
-          'category': 'Document',
-        });
+        // 3. Send to Cloudinary
+        var response = await request.send();
+        var responseData = await response.stream.bytesToString();
+        var jsonResponse = json.decode(responseData);
 
-        setState(() => _isUploading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('File uploaded successfully! ✓'), backgroundColor: AppColors.success)
-          );
+        if (response.statusCode == 200) {
+          // 4. Extract the secure download link from Cloudinary
+          String secureUrl = jsonResponse['secure_url'];
+
+          // 5. Save the file metadata & URL to your existing Firestore database
+          await FirebaseFirestore.instance.collection('users').doc(uid).collection('records').add({
+            'name': fileName,
+            'url': secureUrl,
+            'size_mb': double.parse(fileSize.toStringAsFixed(2)),
+            'uploaded_at': FieldValue.serverTimestamp(),
+            'category': 'Document',
+          });
+
+          setState(() => _isUploading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('File uploaded successfully! ✓'), backgroundColor: AppColors.success)
+            );
+          }
+        } else {
+          throw Exception(jsonResponse['error']['message']);
         }
       }
     } catch (e) {
@@ -135,15 +153,15 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
     );
   }
 
-  // ── HISTORY TAB (LIVE FROM FIREBASE) ──
+  // ── HISTORY TAB ──
   Widget _buildHistoryTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId!).collection('history').orderBy('taken_at', descending: true).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.teal));
         
         final logs = snapshot.data!.docs;
-        if (logs.isEmpty) return const Center(child: Text('No history yet. Take a pill!'));
+        if (logs.isEmpty) return Center(child: Text('No history yet.', style: GoogleFonts.outfit(color: AppColors.textMuted)));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -153,19 +171,27 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
             final date = log['taken_at'] != null ? (log['taken_at'] as Timestamp).toDate() : DateTime.now();
             
             return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: const Border(left: BorderSide(color: AppColors.success, width: 3))),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(kRadiusSm),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x050C1E35), blurRadius: 10, offset: Offset(0, 4)),
+                ],
+                border: const Border(left: BorderSide(color: AppColors.success, width: 4)),
+              ),
               child: Row(children: [
                 const Icon(Icons.check_circle, color: AppColors.success),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(log['name'] ?? 'Medication', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
-                    Text(log['dosage'] ?? '', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textMuted)),
+                    Text(log['name'] ?? 'Medication', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text(log['dosage'] ?? '', style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary)),
                   ]),
                 ),
-                Text(DateFormat('MMM d, h:mm a').format(date), style: GoogleFonts.outfit(fontSize: 10, color: AppColors.textMuted)),
+                Text(DateFormat('MMM d, h:mm a').format(date), style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textMuted)),
               ]),
             );
           },
@@ -174,19 +200,18 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
     );
   }
 
-  // ── LOCKER TAB (LIVE FROM FIREBASE STORAGE) ──
+  // ── LOCKER TAB ──
   Widget _buildLockerTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ── Recent Files List ──
         Text('Your Uploaded Records', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
         
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId!).collection('records').orderBy('uploaded_at', descending: true).snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: AppColors.teal));
             
             final files = snapshot.data!.docs;
             if (files.isEmpty) {
@@ -201,24 +226,52 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
                 final file = doc.data() as Map<String, dynamic>;
                 final date = file['uploaded_at'] != null ? (file['uploaded_at'] as Timestamp).toDate() : DateTime.now();
                 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), boxShadow: AppColors.cardShadow),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.insert_drive_file_outlined, color: AppColors.teal, size: 20),
+                // ── REPLACE YOUR EXISTING CONTAINER WITH THIS ──
+                return GestureDetector(
+                  onTap: () async {
+                    final fileUrl = file['url'];
+                    if (fileUrl != null) {
+                      final uri = Uri.parse(fileUrl);
+                      if (await canLaunchUrl(uri)) {
+                        // This opens the file in the phone's default browser or PDF viewer
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Could not open file'), backgroundColor: AppColors.danger)
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(kRadius),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x050C1E35), blurRadius: 10, offset: Offset(0, 4)),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(file['name'] ?? 'Document', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text('${DateFormat('dd MMM yyyy').format(date)} · ${file['size_mb']} MB', style: GoogleFonts.outfit(fontSize: 10, color: AppColors.textMuted)),
-                      ]),
-                    ),
-                  ]),
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(kRadiusSm)),
+                        child: const Icon(Icons.insert_drive_file_outlined, color: AppColors.teal, size: 22),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(file['name'] ?? 'Document', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          Text('${DateFormat('dd MMM yyyy').format(date)} · ${file['size_mb']} MB', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textSecondary)),
+                        ]),
+                      ),
+                      // Added a little icon to indicate it is clickable!
+                      const Icon(Icons.open_in_new, color: AppColors.textMuted, size: 20),
+                    ]),
+                  ),
                 );
               }).toList(),
             );
@@ -227,7 +280,6 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
 
         const SizedBox(height: 20),
         
-        // ── Upload Button ──
         GestureDetector(
           onTap: _isUploading ? null : _uploadRecord,
           child: Container(

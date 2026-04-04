@@ -78,41 +78,35 @@ class AlarmScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.white,
                       borderRadius: BorderRadius.circular(kRadiusLg),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 30, offset: const Offset(0, 10),
-                        ),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x300C1E35), blurRadius: 40, offset: Offset(0, 16)),
                       ],
                     ),
                     child: Column(children: [
                       // Medicine icon row
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Container(
-                          width: 40, height: 40,
+                          width: 48, height: 48,
                           decoration: BoxDecoration(
                             color: AppColors.tealPale,
-                            borderRadius: BorderRadius.circular(kRadius),
+                            borderRadius: BorderRadius.circular(kRadiusSm),
                           ),
-                          child: const Icon(Icons.medication_outlined, color: AppColors.teal, size: 22),
+                          child: const Icon(Icons.medication_outlined, color: AppColors.teal, size: 24),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 16),
                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Prescribed Medication',
-                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600,
-                                  color: AppColors.textMuted, letterSpacing: 0.5)),
+                              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary, letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
                           Text(name,
                               style: GoogleFonts.outfit(
-                                fontSize: 22, fontWeight: FontWeight.w700,
-                                color: AppColors.navy, letterSpacing: -0.3,
+                                fontSize: 24, fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary, letterSpacing: -0.3,
                               )),
                         ]),
                       ]),
-                      const SizedBox(height: 14),
-                      Container(
-                        height: 1, color: AppColors.divider,
-                      ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 24),
                       Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                         _infoChip(Icons.scale_outlined,    dosage,        AppColors.tealPale,  AppColors.teal),
                         _infoChip(Icons.schedule_outlined, timeString,    AppColors.blueLight, AppColors.bluePrimary),

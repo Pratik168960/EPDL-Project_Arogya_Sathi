@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/common_widgets.dart';
@@ -137,97 +138,224 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
   }
 
-  // ════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(top: 20, bottom: 100),
+      backgroundColor: const Color(0xFFF7FAFD),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(75),
+        child: Container(
+          color: const Color(0xFF0F1C2C),
+          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Quick Actions
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
+                Row(
+                  children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFE0E3E6),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.network(
+                        "https://lh3.googleusercontent.com/aida-public/AB6AXuDbTNIq-ipFd7SYWHS-LgQfO9xSx2O3OL4SQKdEMN6MSQx3qLTSnVU5Vyi64zHUVtWNqdTCaFRpMoiYHrGEvE42O1kNr-JPWzyvVYq9_zNW93HnQMgyhXpYzFR7HfhgrzXMdgLD8WTw-UgmJwvFr8FDKdhcvOauMQtLn_Reep8iEcxC5GIlaMtzxe5ul4Cus9TdQT76m60IFWMskQy7TzOfiryhYgkOeQFVbhtlNk0xkEbIbaQhoyIg_ubHxHMe4bYzHObv-b-wEw",
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.blueGrey),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          DummyData.user.name,
+                          style: GoogleFonts.manrope(
+                            fontSize: 18, fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5, color: const Color(0xFFF7FAFD),
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'PATIENT ID: AS-9942',
+                          style: GoogleFonts.publicSans(
+                            fontSize: 10, fontWeight: FontWeight.normal,
+                            letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () => _snack('No new notifications'),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.0),
+                    ),
+                    child: const Icon(Icons.notifications_active, color: Color(0xFFF7FAFD), size: 24),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 56), // Elevate above Blur NavBar
+        child: FloatingActionButton(
+          onPressed: () => _snack('Dispensing Quick Service...'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          child: Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFF006399),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [BoxShadow(color: Color(0x4D006399), offset: Offset(0, 8), blurRadius: 24)],
+            ),
+            child: const Icon(Icons.medical_services_outlined, color: Colors.white, size: 30),
+          ),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 120),
+        children: [
+          // Hero Banner
+          Container(
+            color: const Color(0xFF0F1C2C),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0x33006399),
+                border: Border.all(color: const Color(0x4D006399)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF006399),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.alarm, color: Colors.white, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Next Dose: 8:00 AM',
+                          style: GoogleFonts.manrope(
+                            fontSize: 20, fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5, color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Metformin 500mg • 1 Capsule',
+                          style: GoogleFonts.publicSans(
+                            fontSize: 14, color: Colors.white.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.4), size: 24),
+                ],
+              ),
+            ),
+          ),
+          
+          // Overlapping Main Content (-mt-6 equivalent)
+          Transform.translate(
+            offset: const Offset(0, -24),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quick Actions Grid
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      QuickActionItem(icon: Icons.calendar_today_outlined, label: 'Book Appt.', bgColor: AppColors.tealPale,   iconColor: AppColors.teal,    onTap: () => _snack('Opening appointment booking...')),
-                      QuickActionItem(icon: Icons.note_add_outlined,        label: 'Add Record', bgColor: AppColors.successBg,  iconColor: AppColors.success, onTap: widget.onNavigateToRecords ?? () {}),
-                      QuickActionItem(icon: Icons.medication_outlined,      label: 'Medicines',  bgColor: AppColors.warningBg,  iconColor: AppColors.warning, onTap: widget.onNavigateToReminders ?? () {}),
-                      QuickActionItem(icon: Icons.emergency_share_outlined, label: 'Emergency',  bgColor: AppColors.dangerBg,   iconColor: AppColors.danger,  onTap: _showSOSDialog),
+                      _quickActionButton(Icons.event_available, 'BOOK APPT', const Color(0xFF006399), () => _snack('Opening appointment booking...')),
+                      _quickActionButton(Icons.note_add, 'ADD RECORD', const Color(0xFF006399), widget.onNavigateToRecords ?? () {}),
+                      _quickActionButton(Icons.medication, 'MEDICINES', const Color(0xFF006399), widget.onNavigateToReminders ?? () {}),
+                      _quickActionButton(Icons.emergency, 'EMERGENCY', const Color(0xFFBA1A1A), _showSOSDialog),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Health Summary ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SectionHeader(title: 'Health Summary', actionLabel: 'Details', onAction: () {}),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GridView.count(
-                    crossAxisCount: 2, shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10, crossAxisSpacing: 10,
-                    childAspectRatio: 1.55,
-                    children: const [
-                      VitalCard(icon: Icons.medication_outlined,   value: '2',   unit: ' doses', label: 'Meds Today',      subLabel: '1 taken · 1 pending',  accent: AppColors.teal,    accentBg: AppColors.tealPale),
-                      VitalCard(icon: Icons.favorite_border,        value: '72',  unit: ' bpm',   label: 'Heart Rate',      subLabel: 'Normal range',          accent: AppColors.success, accentBg: AppColors.successBg),
-                      VitalCard(icon: Icons.opacity_outlined,       value: '120', unit: '/80',    label: 'Blood Pressure',  subLabel: 'Checked today',         accent: AppColors.warning, accentBg: AppColors.warningBg),
-                      VitalCard(icon: Icons.air_outlined,           value: '98',  unit: '%',      label: 'SpO₂',            subLabel: 'Excellent',             accent: AppColors.bluePrimary, accentBg: AppColors.blueLight),
+                  const SizedBox(height: 40),
+                  
+                  // Health Summary Header
+                  Text(
+                    'HEALTH SUMMARY',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14, fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F1C2C), letterSpacing: 2.8,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Health Summary Grid
+                  Row(
+                    children: [
+                      Expanded(child: _healthBox('MEDS TODAY', '3/4', ' Taken', true)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _healthBox('HEART RATE', '72', ' bpm', false)),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Live Medications (Firebase) ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SectionHeader(
-                    title: "Today's Medications",
-                    actionLabel: 'View All',
-                    onAction: widget.onNavigateToReminders,
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: _healthBox('BLOOD PRESSURE', '120/80', '', false)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _healthBox('SPO2', '98', '%', false)),
+                    ],
                   ),
-                ),
-                _buildLiveMedications(),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 40),
 
-                // ── Upcoming Appointments ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SectionHeader(title: 'Upcoming Appointments', actionLabel: 'All'),
-                ),
-                _buildAppointments(),
-                const SizedBox(height: 24),
-
-                // ── Hydration ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SectionHeader(
-                    title: 'Hydration',
-                    actionLabel: '$_waterCount / $_waterGoal glasses',
+                  // Today's Medications Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "TODAY'S MEDICATIONS",
+                        style: GoogleFonts.manrope(
+                          fontSize: 14, fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F1C2C), letterSpacing: 2.8,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: widget.onNavigateToReminders,
+                        child: Text(
+                          'VIEW ALL',
+                          style: GoogleFonts.publicSans(
+                            fontSize: 11, fontWeight: FontWeight.bold,
+                            color: const Color(0xFF006399), letterSpacing: 1.0,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                _buildHydrationCard(),
-                const SizedBox(height: 24),
-
-                // ── Clinical Insight ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SectionHeader(title: 'Clinical Insight'),
-                ),
-                _buildInsightCard(),
-                const SizedBox(height: 24),
-
-                // ── SOS Bar ──
-                _buildSOSBar(),
-              ],
+                  const SizedBox(height: 20),
+                  
+                  // Dynamic Med List
+                  _buildLiveMedications(),
+                ],
+              ),
             ),
           ),
         ],
@@ -235,100 +363,80 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── HEADER ──────────────────────────────────
-  Widget _buildHeader() {
-    return Container(
-      color: AppColors.navy,
-      width: double.infinity,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
-          child: Column(
-            children: [
-              // Greeting row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      _greeting.toUpperCase(),
-                      style: GoogleFonts.outfit(
-                        fontSize: 10, fontWeight: FontWeight.w600,
-                        color: Colors.white38, letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      DummyData.user.name,
-                      style: GoogleFonts.outfit(
-                        fontSize: 20, fontWeight: FontWeight.w700,
-                        color: Colors.white, letterSpacing: -0.3,
-                      ),
-                    ),
-                  ]),
-                  GestureDetector(
-                    onTap: widget.onNavigateToProfile,
-                    child: Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.teal,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                      ),
-                      child: Center(
-                        child: Text('RS',
-                            style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+  Widget _quickActionButton(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 76, height: 76,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 24)],
+            ),
+            child: Center(
+              child: Icon(icon, color: color, size: 28),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: GoogleFonts.publicSans(
+              fontSize: 10, fontWeight: FontWeight.w600,
+              color: color == const Color(0xFFBA1A1A) ? color : const Color(0xFF44474C),
+              letterSpacing: 1.0, 
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // Next dose banner
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.07),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                  borderRadius: BorderRadius.circular(kRadius),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(color: AppColors.teal.withOpacity(0.3), borderRadius: BorderRadius.circular(kRadiusSm)),
-                      child: const Icon(Icons.alarm_outlined, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('NEXT DOSE IN',
-                            style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.tealLight, letterSpacing: 1.2)),
-                        Text('45 min',
-                            style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2)),
-                        Text('Atorvastatin · 10mg',
-                            style: GoogleFonts.outfit(fontSize: 11, color: Colors.white54)),
-                      ]),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.tealLight,
-                        foregroundColor: AppColors.navy,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
-                      ),
-                      onPressed: () => _snack('✓ Dose marked as taken'),
-                      child: Text('Take Now', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
+  Widget _healthBox(String label, String value, String unit, bool activeBorder) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F4F7),
+        borderRadius: BorderRadius.circular(12),
+        border: activeBorder ? const Border(left: BorderSide(color: Color(0xFF006399), width: 4)) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.publicSans(
+              fontSize: 10, fontWeight: FontWeight.bold,
+              color: const Color(0xFF44474C), letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.manrope(
+                  fontSize: 24, fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F1C2C),
                 ),
               ),
+              if (unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  unit,
+                  style: GoogleFonts.manrope(
+                    fontSize: 14, fontWeight: FontWeight.w500,
+                    color: const Color(0xFF0F1C2C).withOpacity(0.5),
+                  ),
+                ),
+              ]
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -339,7 +447,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc('AuthService.currentUserId!')
+          .doc(AuthService.currentUserId!)
           .collection('medications')
           .snapshots(),
       builder: (context, snapshot) {
@@ -383,12 +491,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   // *** FIREBASE DELETE — PRESERVED ***
                   await FirebaseFirestore.instance
                       .collection('users')
-                      .doc('AuthService.currentUserId!')
+                      .doc(AuthService.currentUserId!)
                       .collection('medications')
                       .doc(doc.id)
                       .delete();
                 },
-                child: _medRow(data),
+                child: _medRow(data, doc.id),
               );
             }).toList(),
           ),
@@ -397,64 +505,136 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _medRow(Map<String, dynamic> data) {
+  Widget _medRow(Map<String, dynamic> data, String docId) {
+    String timeRaw = data['time']?.toString() ?? '--:-- AM';
+    String mainTime = timeRaw;
+    String period = '';
+    final parts = timeRaw.split(' ');
+    if (parts.length > 1) {
+      mainTime = parts[0];
+      period = parts[1];
+    } else {
+      final ampmMatches = RegExp(r'[a-zA-Z]+').allMatches(timeRaw);
+      if(ampmMatches.isNotEmpty) {
+          period = ampmMatches.first.group(0) ?? '';
+          mainTime = timeRaw.replaceAll(period, '').trim();
+      }
+    }
+    
+    // Evaluate taken state based on firestore data
+    bool isTaken = data['isTaken'] ?? false;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 20, 20),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: AppColors.cardShadow,
-        border: const Border(left: BorderSide(color: AppColors.teal, width: 3)),
+        color: isTaken ? const Color(0xFFFFFFFF).withOpacity(0.6) : const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(12),
+        border: isTaken ? null : const Border(left: BorderSide(color: Color(0xFF006399), width: 3)),
+        boxShadow: const [BoxShadow(color: Color(0x080F1C2C), offset: Offset(0, 8), blurRadius: 24)],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            // Time
-            SizedBox(
-              width: 46,
-              child: Text(
-                data['time'] ?? '',
-                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Column(
+                  children: [
+                    Text(
+                      mainTime,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13, fontWeight: FontWeight.bold,
+                        color: const Color(0xFF44474C),
+                      ),
+                    ),
+                    Text(
+                      period.toUpperCase(),
+                      style: GoogleFonts.publicSans(
+                        fontSize: 10, color: Colors.blueGrey.shade400,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${data['name'] ?? ''} ${data['dosage'] ?? ''}'.trim(),
+                    style: GoogleFonts.manrope(
+                      fontSize: 16, fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0F1C2C),
+                      decoration: isTaken ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  Text(
+                    data['meal'] ?? data['frequency'] ?? 'Medication',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 12, color: const Color(0xFF44474C),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (isTaken)
+            GestureDetector(
+              onTap: () {
+                // Toggle back to pending
+                FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(AuthService.currentUserId!)
+                  .collection('medications')
+                  .doc(docId)
+                  .update({'isTaken': false});
+              },
+              child: const Icon(Icons.check_circle, color: Color(0xFF006399), size: 28),
+            )
+          else
+            Switch.adaptive(
+              value: isTaken,
+              activeColor: const Color(0xFF006399),
+              onChanged: (val) {
+                // Mark as taken
+                FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(AuthService.currentUserId!)
+                  .collection('medications')
+                  .doc(docId)
+                  .update({'isTaken': val});
+                  
+                // Cancel alarm since it is taken
+                if (val == true && data.containsKey('alarm_id')) {
+                  NotificationService.cancelSpecificAlarm(data['alarm_id']);
+                }
+              },
             ),
-            Container(width: 1, height: 28, color: AppColors.divider, margin: const EdgeInsets.symmetric(horizontal: 12)),
-            // Info
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(data['name']   ?? '',
-                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                Text(data['dosage'] ?? '',
-                    style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-              ]),
-            ),
-            StatusBadge(
-              label: 'Upcoming',
-              background: AppColors.tealPale,
-              textColor: AppColors.teal,
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _emptyMedState() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: AppColors.cardShadow,
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 24)],
       ),
       child: Column(children: [
-        Icon(Icons.medication_outlined, size: 32, color: AppColors.textMuted),
-        const SizedBox(height: 8),
+        const Icon(Icons.medical_services_outlined, size: 28, color: Color(0xFF94A3B8)),
+        const SizedBox(height: 12),
         Text('No medications scheduled',
-            style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textMuted)),
+            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF64748B))),
         const SizedBox(height: 4),
         Text('Add medicines in Reminders tab',
-            style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted.withOpacity(0.7))),
+            style: GoogleFonts.publicSans(fontSize: 11, color: const Color(0xFF94A3B8))),
       ]),
     );
   }
@@ -482,48 +662,41 @@ class _HomeScreenState extends State<HomeScreen> {
     final time  = DateFormat('h:mm a').format(appt.dateTime);
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: AppColors.cardShadow,
-        border: Border.all(color: AppColors.border.withOpacity(0.4), width: 0.5),
+        boxShadow: const [
+          BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+        ],
       ),
-      child: Row(children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Date pill
         Container(
-          width: 48, padding: const EdgeInsets.symmetric(vertical: 8),
+          width: 56, padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.tealPale,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(kRadiusSm),
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(day,   style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.teal, height: 1)),
-            Text(month, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.teal.withOpacity(0.7))),
+            Text(day,   style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.navy, height: 1)),
+            Text(month, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
           ]),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(appt.doctorName,
-                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            const SizedBox(height: 4),
             Text('${appt.specialty} · ${appt.hospital}',
-                style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted),
+                style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 5),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(20)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.schedule_outlined, size: 11, color: AppColors.teal),
-                const SizedBox(width: 4),
-                Text('$time · ${appt.durationMinutes} min',
-                    style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.teal)),
-              ]),
-            ),
+            const SizedBox(height: 10),
+            Text('$time · ${appt.durationMinutes} min',
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.navy)),
           ]),
         ),
-        const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
       ]),
     );
   }

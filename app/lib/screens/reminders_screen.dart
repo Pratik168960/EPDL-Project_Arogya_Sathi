@@ -195,15 +195,17 @@ class _RemindersScreenState extends State<RemindersScreen>
             final isOn = _toggleState[doc.id] ?? true; // Default toggle to ON
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: AppColors.white,
-                borderRadius: BorderRadius.circular(kRadius),
-                boxShadow: AppColors.cardShadow,
-                border: Border(left: BorderSide(color: isOn ? AppColors.teal : AppColors.border, width: 3)),
+                borderRadius: BorderRadius.circular(kRadiusSm),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x050C1E35), blurRadius: 10, offset: Offset(0, 4)),
+                ],
+                border: Border(left: BorderSide(color: isOn ? AppColors.teal : AppColors.border, width: 4)),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 child: Row(children: [
                   // Time
                   SizedBox(
@@ -211,23 +213,24 @@ class _RemindersScreenState extends State<RemindersScreen>
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(
                         med['time'] != null ? med['time'].split(' ')[0] : '--:--',
-                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal),
+                        style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: isOn ? AppColors.teal : AppColors.textMuted, letterSpacing: -0.5),
                       ),
                       Text(
                         med['time'] != null && med['time'].toString().length > 5 ? med['time'].split(' ')[1] : '',
-                        style: GoogleFonts.outfit(fontSize: 9, color: AppColors.textMuted),
+                        style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                       ),
                     ]),
                   ),
-                  Container(width: 1, height: 30, color: AppColors.border, margin: const EdgeInsets.symmetric(horizontal: 10)),
+                  const SizedBox(width: 16), // Divider removed for cleanliness
                   // Med info
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(med['name'] ?? 'Unknown',
-                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600,
                               color: isOn ? AppColors.textPrimary : AppColors.textMuted)),
+                      const SizedBox(height: 4),
                       Text('${med['dosage'] ?? ''}',
-                          style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
+                          style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary)),
                     ]),
                   ),
                   // Toggle Switch
@@ -258,11 +261,13 @@ class _RemindersScreenState extends State<RemindersScreen>
 
   Widget _buildWaterSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: AppColors.cardShadow,
+        boxShadow: const [
+          BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [

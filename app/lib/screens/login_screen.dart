@@ -105,14 +105,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextField(
       controller: ctrl,
       obscureText: isPassword,
-      style: GoogleFonts.outfit(color: Colors.white),
+      style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
-        prefixIcon: Icon(icon, color: Colors.white54),
+        hintStyle: const TextStyle(color: AppColors.textMuted),
+        prefixIcon: Icon(icon, color: AppColors.textMuted),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        fillColor: AppColors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadiusSm), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadiusSm), borderSide: const BorderSide(color: AppColors.teal, width: 2)),
       ),
     );
   }
