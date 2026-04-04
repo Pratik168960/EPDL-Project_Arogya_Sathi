@@ -68,13 +68,13 @@ class NotificationService {
 
     // ── NEW: We use 'final' instead of 'const' here so we can inject the relentless flag ──
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'relentless_medicine_alarm_1', // CHANGED ID so Android accepts the new relentless rules
+      'continuous_alarm_ch_002', // NEW ID to override previous locked channel configurations
       'Continuous Medicine Alarms', 
       channelDescription: 'Alarms that ring continuously until dismissed',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true, 
-      sound: const RawResourceAndroidNotificationSound('alarm'), 
+      audioAttributesUsage: AudioAttributesUsage.alarm, // High volume system alarm channel
       enableVibration: true,
       visibility: NotificationVisibility.public, 
       fullScreenIntent: true, 

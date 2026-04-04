@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/notification_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════
@@ -20,6 +21,7 @@ class AlarmScreen extends StatelessWidget {
     final parts  = payload.split('|');
     final name   = parts.isNotEmpty ? parts[0] : 'Your Medicine';
     final dosage = parts.length > 1  ? parts[1] : '';
+    final payloadId = parts.length > 2 ? int.tryParse(parts[2]) : null;
 
     final now        = DateTime.now();
     final timeString = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -159,7 +161,7 @@ class AlarmScreen extends StatelessWidget {
                         try {
                           await FirebaseFirestore.instance
                               .collection('users')
-                              .doc('user_123')
+                              .doc(AuthService.currentUserId!)
                               .collection('history')
                               .add({
                                 'name': name,
@@ -170,6 +172,25 @@ class AlarmScreen extends StatelessWidget {
                           debugPrint('History saved successfully!');
                         } catch (e) {
                           debugPrint('Error saving history: $e');
+                        }
+                        
+                        // *** 4. UPDATE DASHBOARD IS_TAKEN STATUS BY ALARM ID ***
+                        try {
+                          if (payloadId != null) {
+                            final querySnapshot = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(AuthService.currentUserId!)
+                                .collection('medications')
+                                .where('alarm_id', isEqualTo: payloadId)
+                                .get();
+                              
+                            for (var doc in querySnapshot.docs) {
+                              await doc.reference.update({'isTaken': true});
+                            }
+                          }
+                          debugPrint('Dashboard UI updated with checkmark!');
+                        } catch (e) {
+                          debugPrint('Error updating dashboard: $e');
                         }
 
                         // *** 4. POP BACK — PRESERVED ***

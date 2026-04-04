@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 56), // Elevate above Blur NavBar
+        padding: const EdgeInsets.only(bottom: 92), // Equals ~16px above NavBar mirroring right-edge margin
         child: FloatingActionButton(
           onPressed: () => _snack('Dispensing Quick Service...'),
           backgroundColor: Colors.transparent,
@@ -523,97 +523,101 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Evaluate taken state based on firestore data
     bool isTaken = data['isTaken'] ?? false;
+    bool isReminderOn = data['isReminderOn'] ?? true;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.fromLTRB(16, 20, 20, 20),
-      decoration: BoxDecoration(
-        color: isTaken ? const Color(0xFFFFFFFF).withOpacity(0.6) : const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(12),
-        border: isTaken ? null : const Border(left: BorderSide(color: Color(0xFF006399), width: 3)),
-        boxShadow: const [BoxShadow(color: Color(0x080F1C2C), offset: Offset(0, 8), blurRadius: 24)],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 56,
-                child: Column(
+    return GestureDetector(
+      onTap: () {
+        // Toggle the physical 'Taken' status, which rules the checkmark and strikethrough
+        FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('medications')
+          .doc(docId)
+          .update({'isTaken': !isTaken});
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 20, 20),
+        decoration: BoxDecoration(
+          color: isTaken ? const Color(0xFFFFFFFF).withOpacity(0.6) : const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(12),
+          border: isTaken ? null : const Border(left: BorderSide(color: Color(0xFF006399), width: 3)),
+          boxShadow: const [BoxShadow(color: Color(0x080F1C2C), offset: Offset(0, 8), blurRadius: 24)],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 56,
+                  child: Column(
+                    children: [
+                      Text(
+                        mainTime,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13, fontWeight: FontWeight.bold,
+                          color: const Color(0xFF44474C),
+                        ),
+                      ),
+                      Text(
+                        period.toUpperCase(),
+                        style: GoogleFonts.publicSans(
+                          fontSize: 10, color: Colors.blueGrey.shade400,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mainTime,
+                      '${data['name'] ?? ''} ${data['dosage'] ?? ''}'.trim(),
                       style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.bold,
-                        color: const Color(0xFF44474C),
+                        fontSize: 16, fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F1C2C),
+                        decoration: isTaken ? TextDecoration.lineThrough : null,
                       ),
                     ),
                     Text(
-                      period.toUpperCase(),
+                      data['meal'] ?? data['frequency'] ?? 'Medication',
                       style: GoogleFonts.publicSans(
-                        fontSize: 10, color: Colors.blueGrey.shade400,
-                        letterSpacing: 1.0,
+                        fontSize: 12, color: const Color(0xFF44474C),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${data['name'] ?? ''} ${data['dosage'] ?? ''}'.trim(),
-                    style: GoogleFonts.manrope(
-                      fontSize: 16, fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F1C2C),
-                      decoration: isTaken ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  Text(
-                    data['meal'] ?? data['frequency'] ?? 'Medication',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 12, color: const Color(0xFF44474C),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (isTaken)
-            GestureDetector(
-              onTap: () {
-                // Toggle back to pending
-                FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(AuthService.currentUserId!)
-                  .collection('medications')
-                  .doc(docId)
-                  .update({'isTaken': false});
-              },
-              child: const Icon(Icons.check_circle, color: Color(0xFF006399), size: 28),
-            )
-          else
-            Switch.adaptive(
-              value: isTaken,
-              activeColor: const Color(0xFF006399),
-              onChanged: (val) {
-                // Mark as taken
-                FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(AuthService.currentUserId!)
-                  .collection('medications')
-                  .doc(docId)
-                  .update({'isTaken': val});
-                  
-                // Cancel alarm since it is taken
-                if (val == true && data.containsKey('alarm_id')) {
-                  NotificationService.cancelSpecificAlarm(data['alarm_id']);
-                }
-              },
+              ],
             ),
-        ],
+            if (isTaken)
+              const Icon(Icons.check_circle, color: Color(0xFF006399), size: 28)
+            else
+              Switch.adaptive(
+                value: isReminderOn,
+                activeColor: Colors.white,
+                activeTrackColor: const Color(0xFF006399),
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: const Color(0xFFE2E8F0),
+                onChanged: (val) {
+                  // This solely toggles the reminder enabled/disabled visually
+                  FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(AuthService.currentUserId!)
+                    .collection('medications')
+                    .doc(docId)
+                    .update({'isReminderOn': val});
+                    
+                  // Handle alarm cancellation if they turn it off
+                  if (!val && data.containsKey('alarm_id')) {
+                    NotificationService.cancelSpecificAlarm(data['alarm_id']);
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
