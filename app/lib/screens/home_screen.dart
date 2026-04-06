@@ -8,6 +8,8 @@ import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/common_widgets.dart';
+import '../screens/medication_detail_screen.dart';
+import '../widgets/add_medicine_sheet.dart';
 
 // ═══════════════════════════════════════════════
 //  HOME / DASHBOARD SCREEN
@@ -211,7 +213,14 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 92), // Equals ~16px above NavBar mirroring right-edge margin
         child: FloatingActionButton(
-          onPressed: () => _snack('Dispensing Quick Service...'),
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => const AddMedicineSheet(),
+            );
+          },
           backgroundColor: Colors.transparent,
           elevation: 0,
           highlightElevation: 0,
@@ -592,30 +601,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            if (isTaken)
-              const Icon(Icons.check_circle, color: Color(0xFF006399), size: 28)
-            else
-              Switch.adaptive(
-                value: isReminderOn,
-                activeColor: Colors.white,
-                activeTrackColor: const Color(0xFF006399),
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: const Color(0xFFE2E8F0),
-                onChanged: (val) {
-                  // This solely toggles the reminder enabled/disabled visually
-                  FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(AuthService.currentUserId!)
-                    .collection('medications')
-                    .doc(docId)
-                    .update({'isReminderOn': val});
-                    
-                  // Handle alarm cancellation if they turn it off
-                  if (!val && data.containsKey('alarm_id')) {
-                    NotificationService.cancelSpecificAlarm(data['alarm_id']);
-                  }
-                },
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.info_outline, color: Color(0xFFC4C6CC), size: 24),
+                  onPressed: () {
+                    // Navigate to detail screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MedicationDetailScreen(data: data, docId: docId),
+                      ),
+                    );
+                  },
+                ),
+                if (isTaken)
+                  const Icon(Icons.check_circle, color: Color(0xFF006399), size: 28)
+                else
+                  Switch.adaptive(
+                    value: isReminderOn,
+                    activeColor: Colors.white,
+                    activeTrackColor: const Color(0xFF006399),
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: const Color(0xFFE2E8F0),
+                    onChanged: (val) {
+                      FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(AuthService.currentUserId!)
+                        .collection('medications')
+                        .doc(docId)
+                        .update({'isReminderOn': val});
+                        
+                      if (!val && data.containsKey('alarm_id')) {
+                        NotificationService.cancelSpecificAlarm(data['alarm_id']);
+                      }
+                    },
+                  ),
+              ],
+            ),
           ],
         ),
       ),

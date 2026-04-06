@@ -10,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/records_screen.dart';
-import 'screens/reminders_screen.dart';
+import 'screens/adherence_history_screen.dart';
 import 'screens/profile_screen.dart';
 
 void main() async {
@@ -101,7 +101,7 @@ class _MainShellState extends State<MainShell> {
                 onNavigateToRecords:   () => _goTo(2),
                 onNavigateToProfile:   () => _goTo(3),
               ),
-              const RemindersScreen(),
+              const AdherenceHistoryScreen(),
               const RecordsScreen(),
               const ProfileScreen(),
             ],
@@ -115,7 +115,7 @@ class _MainShellState extends State<MainShell> {
   Widget _buildBottomNav() {
     const tabs = [
       _NavTab(icon: Icons.home_max, activeIcon: Icons.home_max, label: 'HOME'),
-      _NavTab(icon: Icons.medication_outlined, activeIcon: Icons.medication, label: 'MEDS', badge: 1),
+      _NavTab(icon: Icons.analytics_outlined, activeIcon: Icons.analytics, label: 'HISTORY'),
       _NavTab(icon: Icons.description_outlined, activeIcon: Icons.description, label: 'HEALTH'),
       _NavTab(icon: Icons.person_outline, activeIcon: Icons.person, label: 'PROFILE'),
     ];

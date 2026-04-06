@@ -7,7 +7,30 @@ import '../widgets/common_widgets.dart';
 import 'hardware_screen.dart';
 
 // ═══════════════════════════════════════════════
-//  PROFILE SCREEN
+//  Stitch Design Tokens (exact from HTML)
+// ═══════════════════════════════════════════════
+class _S {
+  static const Color surface           = Color(0xFFF7FAFD);
+  static const Color surfContainerLow  = Color(0xFFF1F4F7);
+  static const Color surfContainerHigh = Color(0xFFE5E8EB);
+  static const Color surfContainer     = Color(0xFFEBEEF1);
+  static const Color surfVariant       = Color(0xFFE0E3E6);
+  static const Color surfLowest        = Color(0xFFFFFFFF);
+  static const Color primaryContainer  = Color(0xFF0F1C2C);
+  static const Color secondary         = Color(0xFF006399);
+  static const Color secondaryContainer= Color(0xFF67BAFD);
+  static const Color onSecondaryContainer = Color(0xFF004972);
+  static const Color onSurfaceVariant  = Color(0xFF44474C);
+  static const Color outline           = Color(0xFF74777D);
+  static const Color outlineVariant    = Color(0xFFC4C6CC);
+  static const Color error             = Color(0xFFBA1A1A);
+  static const Color errorContainer    = Color(0xFFFFDAD6);
+  static const Color onErrorContainer  = Color(0xFF93000A);
+  static const Color primaryFixed      = Color(0xFFD6E4F9);
+}
+
+// ═══════════════════════════════════════════════
+//  PROFILE & CAREGIVERS SCREEN
 // ═══════════════════════════════════════════════
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,283 +40,65 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _notificationsOn = true;
-  bool _biometricOn     = true;
-  bool _smsAlertsOn     = true;
-  String _language      = 'English';
-
   final UserProfile user = DummyData.user;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
+      backgroundColor: _S.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+                children: [
+                  _buildProfileSummary(),
+                  const SizedBox(height: 32),
+                  _buildMedicalIdentity(),
+                  const SizedBox(height: 32),
+                  _buildCaregivers(),
+                  const SizedBox(height: 32),
+                  _buildAccountSettings(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── TOP BAR ──────────────────────────────────────
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildHeader(),
-          _buildStatStrip(),
-          Container(height: 1, color: AppColors.divider),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
-              children: [
-                // Personal Information
-                NavySectionLabel(label: 'PERSONAL INFORMATION'),
-                _infoCard([
-                  ProfileInfoRow(icon: Icons.phone_outlined,     label: 'Phone',   value: user.phone,   onTap: () => _snack('Edit phone')),
-                  ProfileInfoRow(icon: Icons.email_outlined,     label: 'Email',   value: user.email,   onTap: () => _snack('Edit email')),
-                  ProfileInfoRow(icon: Icons.location_on_outlined,label: 'Address', value: user.address, onTap: () => _snack('Update address')),
-                ]),
-                const SizedBox(height: 20),
-
-                // Health Information
-                NavySectionLabel(label: 'HEALTH INFORMATION'),
-                _infoCard([
-                  ProfileInfoRow(
-                    icon: Icons.bloodtype_outlined,
-                    label: 'Blood Group',
-                    value: user.bloodGroup,
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(20)),
-                      child: Text(user.bloodGroup,
-                          style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.danger)),
-                    ),
-                  ),
-                  ProfileInfoRow(
-                    icon: Icons.monitor_heart_outlined,
-                    label: 'Conditions',
-                    value: user.conditions.join(' · '),
-                  ),
-                  ProfileInfoRow(
-                    icon: Icons.person_pin_outlined,
-                    label: 'Age & Gender',
-                    value: '${user.age} years · ${user.gender}',
-                  ),
-                ]),
-                const SizedBox(height: 20),
-
-                // Past Medication History
-                NavySectionLabel(label: 'PAST MEDICATION HISTORY'),
-                _infoCard([
-                  _medHistoryRow(
-                    name: 'Amoxicillin',
-                    note: 'Completed · Oct 2023',
-                    tagLabel: 'Add Note',
-                    tagColor: AppColors.teal,
-                    tagBg: AppColors.tealPale,
-                  ),
-                  _medHistoryRow(
-                    name: 'Lisinopril',
-                    note: 'Discontinued · Aug 2022',
-                    tagLabel: 'Blood Pressure',
-                    tagColor: AppColors.danger,
-                    tagBg: AppColors.dangerBg,
-                  ),
-                ]),
-                const SizedBox(height: 20),
-
-                // Emergency Contact
-                NavySectionLabel(label: 'EMERGENCY CONTACT'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(kRadius),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(kRadius)),
-                      child: const Icon(Icons.emergency_share_outlined, color: AppColors.danger, size: 22),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(user.emergencyContactName,
-                            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                        const SizedBox(height: 4),
-                        Text('${user.emergencyContactRelation} · ${user.emergencyContactPhone}',
-                            style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary)),
-                      ]),
-                    ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
-                      icon: const Icon(Icons.call_outlined, size: 16),
-                      label: Text('Call', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
-                      onPressed: () => _snack('Calling ${user.emergencyContactName}...'),
-                    ),
-                  ]),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.maybePop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.arrow_back, color: _S.secondary, size: 24),
                 ),
-                const SizedBox(height: 32),
-
-                // Medical Reports & Documents
-                NavySectionLabel(label: 'MEDICAL REPORTS'),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(kRadius),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  child: Column(children: [
-                    _docRow(Icons.biotech_outlined,     'Blood_Test_Dec.pdf',   'Dec 2024',   AppColors.danger),
-                    const SizedBox(height: 8),
-                    _docRow(Icons.medical_information_outlined,   'Chest_XRay.jpg',       'Nov 2024',   AppColors.teal),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _snack('Upload new document'),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                        child: Row(children: [
-                          Container(
-                            width: 34, height: 34,
-                            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(kRadiusSm)),
-                            child: const Icon(Icons.upload_outlined, size: 17, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(width: 12),
-                          Text('Upload New',
-                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                        ]),
-                      ),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 32),
-
-                // Settings
-                NavySectionLabel(label: 'SETTINGS'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(kRadius),
-                    boxShadow: AppColors.cardShadow,
-                  ),
-                  child: Column(children: [
-                    // Manage Hardware
-                    InkWell(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(kRadius)),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HardwareScreen()),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        child: Row(children: [
-                          Container(
-                            width: 34, height: 34,
-                            decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(kRadiusSm)),
-                            child: const Icon(Icons.devices_other_outlined, size: 17, color: AppColors.teal),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Manage Hardware',
-                                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                              Text('Bluetooth devices & settings',
-                                  style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-                            ]),
-                          ),
-                          const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
-                        ]),
-                      ),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
-
-                    // Language
-                    InkWell(
-                      onTap: () {
-                        setState(() => _language = _language == 'English' ? 'हिंदी' : 'English');
-                        _snack('Language changed to $_language');
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        child: Row(children: [
-                          Container(
-                            width: 34, height: 34,
-                            decoration: BoxDecoration(color: AppColors.blueLight, borderRadius: BorderRadius.circular(kRadiusSm)),
-                            child: const Icon(Icons.language_outlined, size: 17, color: AppColors.bluePrimary),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Language',
-                                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                              Text(_language,
-                                  style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-                            ]),
-                          ),
-                          const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
-                        ]),
-                      ),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
-
-                    // Notifications
-                    _settingToggleRow(
-                      icon: Icons.notifications_outlined,
-                      iconBg: AppColors.warningBg,
-                      iconColor: AppColors.warning,
-                      label: 'Pill Reminders',
-                      sub: 'Push & SMS Notifications',
-                      value: _notificationsOn,
-                      onChanged: (v) => setState(() => _notificationsOn = v),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
-
-                    // Biometric
-                    _settingToggleRow(
-                      icon: Icons.fingerprint_outlined,
-                      iconBg: AppColors.tealPale,
-                      iconColor: AppColors.teal,
-                      label: 'Biometric Lock',
-                      sub: 'Fingerprint / Face ID',
-                      value: _biometricOn,
-                      onChanged: (v) => setState(() => _biometricOn = v),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider, indent: 16),
-
-                    // SMS alerts
-                    _settingToggleRow(
-                      icon: Icons.sms_outlined,
-                      iconBg: const Color(0xFFEDE9FE),
-                      iconColor: const Color(0xFF7C3AED),
-                      label: 'SMS Alerts',
-                      sub: 'Send to emergency contacts',
-                      value: _smsAlertsOn,
-                      onChanged: (v) => setState(() => _smsAlertsOn = v),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 24),
-
-                // Logout
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: BorderSide(color: AppColors.danger.withOpacity(0.35), width: 1.5),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    icon: const Icon(Icons.logout_outlined, size: 18),
-                    label: Text('LOGOUT FROM ALL DEVICES',
-                        style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-                    onPressed: () => _confirmLogout(),
-                  ),
-                ),
-              ],
+              ),
+              const SizedBox(width: 16),
+              Text('Profile',
+                  style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700,
+                      color: _S.primaryContainer, letterSpacing: -0.3)),
+            ],
+          ),
+          GestureDetector(
+            onTap: () => _snack('Settings'),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.settings_outlined, color: _S.secondary, size: 24),
             ),
           ),
         ],
@@ -301,207 +106,425 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── HEADER ──────────────────────────────────
-  Widget _buildHeader() {
-    return Container(
-      color: AppColors.navy,
-      width: double.infinity,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
-          child: Column(children: [
-            // Avatar
-            Stack(alignment: Alignment.bottomRight, children: [
-              Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(
-                  color: AppColors.teal,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 3),
-                ),
-                child: Center(
-                  child: Text('RS',
-                      style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
+  // ── PROFILE SUMMARY ──────────────────────────────
+  Widget _buildProfileSummary() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Avatar
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                color: _S.surfContainerHigh,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 2), blurRadius: 8)],
+              ),
+              child: Center(
+                child: Text(
+                  user.name.split(' ').map((w) => w[0]).take(2).join(),
+                  style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.w700, color: _S.primaryContainer),
                 ),
               ),
-              Container(
-                width: 24, height: 24,
-                decoration: BoxDecoration(
-                  color: AppColors.tealLight,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.navy, width: 2),
-                ),
-                child: const Icon(Icons.edit_outlined, size: 12, color: AppColors.navy),
-              ),
-            ]),
-            const SizedBox(height: 12),
-            Text(user.name,
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
-            const SizedBox(height: 4),
-            Text('${user.age} Years · ${user.gender} · Blood Group ${user.bloodGroup}',
-                style: GoogleFonts.outfit(fontSize: 11, color: Colors.white38)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8, alignment: WrapAlignment.center,
-              children: user.conditions.map((c) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.15)),
-                ),
-                child: Text(c, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white60)),
-              )).toList(),
             ),
-          ]),
+            Positioned(
+              bottom: -4, right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: _S.secondary,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _S.surface, width: 2),
+                ),
+                child: const Icon(Icons.verified, size: 12, color: Colors.white),
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(width: 20),
+        // Info
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(user.name,
+                  style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800,
+                      color: _S.primaryContainer, letterSpacing: -0.5)),
+              const SizedBox(height: 4),
+              Text('PATIENT ID: AS-9920-X12',
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                      color: _S.onSurfaceVariant, letterSpacing: 1.2)),
+              const SizedBox(height: 16),
+              // Edit Profile Button
+              GestureDetector(
+                onTap: () => _snack('Edit profile'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _S.secondary,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.edit, size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text('Edit Profile',
+                          style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  // ── STAT STRIP ───────────────────────────────
-  Widget _buildStatStrip() {
+  // ── MEDICAL IDENTITY ─────────────────────────────
+  Widget _buildMedicalIdentity() {
+    return Column(
+      children: [
+        // Blood Group — with left blue border
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _S.surfLowest,
+            borderRadius: BorderRadius.circular(12),
+            border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
+            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('BLOOD GROUP',
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+              const SizedBox(height: 4),
+              Text(user.bloodGroup,
+                  style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800,
+                      color: _S.primaryContainer, letterSpacing: -0.5)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Allergies
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _S.surfLowest,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ALLERGIES',
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: ['PENICILLIN', 'LATEX'].map((a) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _S.errorContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(a,
+                      style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700,
+                          color: _S.onErrorContainer)),
+                )).toList(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Chronic Conditions
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _S.surfLowest,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('CHRONIC CONDITIONS',
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+              const SizedBox(height: 6),
+              Text(user.conditions.join(', '),
+                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700,
+                      color: _S.primaryContainer, height: 1.3)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── CAREGIVERS ────────────────────────────────────
+  Widget _buildCaregivers() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Caregivers',
+                      style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700,
+                          color: _S.primaryContainer, letterSpacing: -0.3)),
+                  const SizedBox(height: 4),
+                  Text('Authorized individuals for clinical updates and emergency contact.',
+                      style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _snack('Add caregiver'),
+              child: Row(
+                children: [
+                  const Icon(Icons.add_circle_outline, size: 18, color: _S.secondary),
+                  const SizedBox(width: 4),
+                  Text('Add\nCaregiver',
+                      textAlign: TextAlign.end,
+                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700,
+                          color: _S.secondary, height: 1.2)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Primary Caregiver
+        _caregiverTile(
+          name: user.emergencyContactName,
+          relation: user.emergencyContactRelation,
+          badgeLabel: 'PRIMARY',
+          badgeBg: _S.secondaryContainer,
+          badgeText: _S.onSecondaryContainer,
+          avatarBg: _S.primaryFixed,
+          avatarIconColor: _S.primaryContainer,
+        ),
+        const SizedBox(height: 12),
+
+        // Emergency Contact
+        _caregiverTile(
+          name: 'Rahul Sharma',
+          relation: 'Brother',
+          badgeLabel: 'EMERGENCY',
+          badgeBg: _S.errorContainer,
+          badgeText: _S.onErrorContainer,
+          avatarBg: _S.surfVariant,
+          avatarIconColor: _S.onSurfaceVariant,
+        ),
+      ],
+    );
+  }
+
+  Widget _caregiverTile({
+    required String name,
+    required String relation,
+    required String badgeLabel,
+    required Color badgeBg,
+    required Color badgeText,
+    required Color avatarBg,
+    required Color avatarIconColor,
+  }) {
     return Container(
-      color: AppColors.white,
-      child: Row(children: [
-        _statPill('4',  'MEDICINES', AppColors.teal),
-        Container(width: 1, height: 36, color: AppColors.divider),
-        _statPill('11', 'RECORDS',   AppColors.success),
-        Container(width: 1, height: 36, color: AppColors.divider),
-        _statPill('2',  'UPCOMING',  AppColors.warning),
-      ]),
-    );
-  }
-
-  Widget _statPill(String val, String label, Color color) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Column(children: [
-          Text(val,   style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: color, height: 1)),
-          const SizedBox(height: 3),
-          Text(label, style: GoogleFonts.outfit(fontSize: 9,  fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.5)),
-        ]),
-      ),
-    );
-  }
-
-  // ── HELPERS ──────────────────────────────────
-  Widget _infoCard(List<Widget> rows) {
-    return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(kRadius),
-        boxShadow: const [
-          BoxShadow(color: Color(0x050C1E35), blurRadius: 16, offset: Offset(0, 4)),
+        color: _S.surfContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: avatarBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.person, color: avatarIconColor, size: 24),
+          ),
+          const SizedBox(width: 14),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700,
+                        color: _S.primaryContainer)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(badgeLabel,
+                          style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w700,
+                              color: badgeText)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(relation,
+                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500,
+                            color: _S.onSurfaceVariant)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Action buttons
+          Row(
+            children: [
+              _actionButton(Icons.call, () => _snack('Calling $name...')),
+              const SizedBox(width: 8),
+              _actionButton(Icons.chat_bubble_outline, () => _snack('Messaging $name...')),
+            ],
+          ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        children: rows.map((r) {
-          final isLast = rows.last == r;
-          return Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-            child: r,
-          );
-        }).toList(),
+    );
+  }
+
+  Widget _actionButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: _S.surfLowest,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: _S.outlineVariant.withOpacity(0.2)),
+        ),
+        child: Icon(icon, size: 20, color: _S.secondary),
       ),
     );
   }
 
-  Widget _medHistoryRow({
-    required String name,
-    required String note,
-    required String tagLabel,
-    required Color tagColor,
-    required Color tagBg,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: [
+  // ── ACCOUNT SETTINGS ─────────────────────────────
+  Widget _buildAccountSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Account Settings',
+            style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700,
+                color: _S.primaryContainer)),
+        const SizedBox(height: 20),
         Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: AppColors.tealPale, borderRadius: BorderRadius.circular(kRadiusSm)),
-          child: const Icon(Icons.medication_outlined, size: 17, color: AppColors.teal),
+          decoration: BoxDecoration(
+            color: _S.surfLowest,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+          ),
+          child: Column(
+            children: [
+              // Manage Hardware
+              _settingsItem(
+                icon: Icons.devices_other_outlined,
+                label: 'Manage Hardware',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const HardwareScreen()));
+                },
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.notifications_outlined,
+                label: 'Notification Settings',
+                onTap: () => _snack('Notification settings'),
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.security_outlined,
+                label: 'Privacy Policy',
+                onTap: () => _snack('Privacy Policy'),
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.help_outline,
+                label: 'Support & Help',
+                onTap: () => _snack('Support & Help'),
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              // Log Out
+              InkWell(
+                onTap: () => _confirmLogout(),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.logout, size: 24, color: _S.error),
+                      const SizedBox(width: 16),
+                      Text('Log Out',
+                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                              color: _S.error)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-            Text(note, style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-          ]),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(20)),
-          child: Text(tagLabel, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: tagColor)),
-        ),
-      ]),
+      ],
     );
   }
 
-  Widget _docRow(IconData icon, String name, String date, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: [
-        Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(kRadiusSm)),
-          child: Icon(icon, size: 17, color: color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(date, style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-          ]),
-        ),
-        const Icon(Icons.download_outlined, size: 18, color: AppColors.textMuted),
-      ]),
-    );
-  }
-
-  Widget _settingToggleRow({
+  Widget _settingsItem({
     required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
     required String label,
-    required String sub,
-    required bool value,
-    required ValueChanged<bool> onChanged,
+    required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: [
-        Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(kRadiusSm)),
-          child: Icon(icon, size: 17, color: iconColor),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(icon, size: 24, color: _S.onSurfaceVariant),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(label,
+                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                      color: _S.primaryContainer)),
+            ),
+            const Icon(Icons.chevron_right, size: 20, color: _S.outline),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-            Text(sub,   style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted)),
-          ]),
-        ),
-        Switch.adaptive(
-          value: value,
-          onChanged: (v) {
-            HapticFeedback.selectionClick();
-            onChanged(v);
-          },
-          activeColor: Colors.white,
-          activeTrackColor: AppColors.teal,
-          inactiveThumbColor: Colors.white,
-          inactiveTrackColor: AppColors.border,
-        ),
-      ]),
+      ),
     );
   }
 
+  // ── PRESERVED BACKEND ────────────────────────────
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -526,9 +549,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-      backgroundColor: AppColors.navy,
+      backgroundColor: _S.primaryContainer,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       margin: const EdgeInsets.all(16),
       duration: const Duration(seconds: 2),
     ));
