@@ -5,6 +5,11 @@ import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/common_widgets.dart';
 import 'hardware_screen.dart';
+import 'emergency_sos_screen.dart';
+import 'medical_id_basic_health_screen.dart';
+import 'analytics_screen.dart';
+import 'care_team_screen.dart';
+import 'pill_inventory_screen.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens (exact from HTML)
@@ -455,9 +460,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
 
               _settingsItem(
+                icon: Icons.inventory_2_outlined,
+                label: 'Pill Inventory',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PillInventoryScreen()));
+                },
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
                 icon: Icons.notifications_outlined,
                 label: 'Notification Settings',
                 onTap: () => _snack('Notification settings'),
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.group_outlined,
+                label: 'My Care Team',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CareTeamScreen()));
+                },
               ),
               Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
 
@@ -472,6 +497,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.help_outline,
                 label: 'Support & Help',
                 onTap: () => _snack('Support & Help'),
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.analytics_outlined,
+                label: 'Analytics',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
+                },
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.emergency_outlined,
+                label: 'Emergency SOS',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencySosScreen()));
+                },
+              ),
+              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
+
+              _settingsItem(
+                icon: Icons.badge_outlined,
+                label: 'Medical ID Setup',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicalIdBasicHealthScreen()));
+                },
               ),
               Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
 
