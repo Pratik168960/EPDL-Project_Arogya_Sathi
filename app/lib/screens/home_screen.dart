@@ -1,12 +1,12 @@
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../models/models.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/medication_detail_screen.dart';
 import '../widgets/add_medicine_sheet.dart';
@@ -31,8 +31,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _waterCount = DummyData.waterGlassesDone;
-  final int _waterGoal = DummyData.waterGlassesGoal;
+  int _waterCount = 5;
+  final int _waterGoal = 8;
 
   @override
   void initState() {
@@ -48,6 +48,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (h < 12) return 'Good Morning';
     if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
+  }
+
+  String get _displayName {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.displayName?.isNotEmpty == true) return user!.displayName!;
+    final raw = (user?.email ?? 'User').split('@').first;
+    return raw
+        .split(RegExp(r'[._\s]+'))
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 
   // ── SOS DIALOG ──────────────────────────────
@@ -175,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          DummyData.user.name,
+                          _displayName,
                           style: GoogleFonts.manrope(
                             fontSize: 18, fontWeight: FontWeight.bold,
                             letterSpacing: -0.5, color: const Color(0xFFF7FAFD),
@@ -667,27 +677,79 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── APPOINTMENTS ────────────────────────────
+  // ── APPOINTMENTS — Firestore ──────────────────
   Widget _buildAppointments() {
-    final upcoming = DummyData.appointments
-        .where((a) => a.status == AppointmentStatus.upcoming)
-        .take(2)
-        .toList();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('appointments')
+          .orderBy('date_time')
+          .limit(2)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(kRadius),
+                boxShadow: AppColors.cardShadow,
+              ),
+              child: Row(children: [
+                const Icon(Icons.event_outlined, color: AppColors.textMuted, size: 20),
+                const SizedBox(width: 12),
+                Text('No upcoming appointments',
+                    style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary)),
+              ]),
+            ),
+          );
+        }
 
-    return Column(
-      children: upcoming.map((appt) {
-        return Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-          child: _apptCard(appt),
+        final docs = snapshot.data!.docs;
+        return Column(
+          children: docs.map((doc) {
+            final data = doc.data();
+            final doctorName = data['doctor_name'] as String? ?? 'Doctor';
+            final specialty = data['specialty'] as String? ?? '';
+            final hospital = data['hospital'] as String? ?? '';
+            final durationMin = data['duration_minutes'] as int? ?? 30;
+            DateTime dateTime;
+            final dtField = data['date_time'];
+            if (dtField is Timestamp) {
+              dateTime = dtField.toDate();
+            } else {
+              dateTime = DateTime.now();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+              child: _apptCardFromData(
+                doctorName: doctorName,
+                specialty: specialty,
+                hospital: hospital,
+                dateTime: dateTime,
+                durationMinutes: durationMin,
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
-  Widget _apptCard(Appointment appt) {
-    final day   = DateFormat('dd').format(appt.dateTime);
-    final month = DateFormat('MMM').format(appt.dateTime);
-    final time  = DateFormat('h:mm a').format(appt.dateTime);
+  Widget _apptCardFromData({
+    required String doctorName,
+    required String specialty,
+    required String hospital,
+    required DateTime dateTime,
+    required int durationMinutes,
+  }) {
+    final day   = DateFormat('dd').format(dateTime);
+    final month = DateFormat('MMM').format(dateTime);
+    final time  = DateFormat('h:mm a').format(dateTime);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -714,14 +776,14 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(appt.doctorName,
+            Text(doctorName,
                 style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
             const SizedBox(height: 4),
-            Text('${appt.specialty} · ${appt.hospital}',
+            Text('$specialty · $hospital',
                 style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 10),
-            Text('$time · ${appt.durationMinutes} min',
+            Text('$time · $durationMinutes min',
                 style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.navy)),
           ]),
         ),
@@ -804,7 +866,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ]),
               const SizedBox(height: 6),
               Text(
-                DummyData.dailyHealthTip,
+                'Eating fiber-rich foods like dal, sabzi, and whole grains helps regulate blood sugar and keeps your gut healthy. Aim for 25–30g of fiber daily for best results.',
                 style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary, height: 1.55),
               ),
             ]),

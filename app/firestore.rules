@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════
+//  ArogyaSathi — Firestore Security Rules
+//  Every user can ONLY read/write their own data.
+//  No cross-user access. No unauthenticated access.
+// ═══════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: Is the request from an authenticated user? ──
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Helper: Does the user own this document path? ──
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // ════════════════════════════════════════════════
+    //  /users/{userId} — User Profile Root
+    // ════════════════════════════════════════════════
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // ── Medications (reminders) ─────────────────
+      match /medications/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Medication History (adherence logs) ─────
+      match /history/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Pill Inventory ──────────────────────────
+      match /inventory/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Caregivers / Care Team ──────────────────
+      match /caregivers/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── SOS Alerts ─────────────────────────────
+      match /alerts/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Appointments ───────────────────────────
+      match /appointments/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Medical ID (basic_health, conditions, emergency_contacts) ──
+      match /medical_id/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Health Records ─────────────────────────
+      match /records/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ════════════════════════════════════════════════
+    //  DEFAULT: Deny everything else
+    // ════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

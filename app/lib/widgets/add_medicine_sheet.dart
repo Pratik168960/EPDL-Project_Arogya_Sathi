@@ -76,6 +76,7 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
       }
     } catch (e) {
       setState(() => _saving = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $e', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
         backgroundColor: AppColors.danger,
@@ -165,7 +166,7 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: _frequency,
+                initialValue: _frequency,
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Frequency',
@@ -177,7 +178,7 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: _meal,
+                initialValue: _meal,
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'When to take',

@@ -1,6 +1,9 @@
+import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens
@@ -19,10 +22,12 @@ class _S {
   static const Color onSurface         = Color(0xFF181C1E);
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outlineVariant    = Color(0xFFC4C6CC);
+  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
 //  MEDICAL ID: EMERGENCY CONTACTS (Step 3/3)
+//  Phase 3: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class MedicalIdContactsScreen extends StatefulWidget {
   const MedicalIdContactsScreen({super.key});
@@ -32,17 +37,156 @@ class MedicalIdContactsScreen extends StatefulWidget {
 }
 
 class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
-  final _primaryNameCtrl  = TextEditingController(text: 'Sarah Jenkins');
-  final _primaryPhoneCtrl = TextEditingController(text: '+1 (555) 000-0000');
+  final _primaryNameCtrl  = TextEditingController();
+  final _primaryPhoneCtrl = TextEditingController();
   String _primaryRelation = 'Spouse';
 
-  final _secondaryNameCtrl  = TextEditingController(text: 'Michael Jenkins');
-  final _secondaryPhoneCtrl = TextEditingController(text: '+1 (555) 123-4567');
+  final _secondaryNameCtrl  = TextEditingController();
+  final _secondaryPhoneCtrl = TextEditingController();
   String _secondaryRelation = 'Sibling';
 
   bool _showOnLockScreen = true;
+  bool _isSaving = false;
+  bool _isLoaded = false;
 
   final _relations = ['Spouse', 'Parent', 'Sibling', 'Child', 'Friend', 'Other'];
+
+  // ── Firestore Reference ──────────────────────
+  DocumentReference<Map<String, dynamic>> get _contactsDoc =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('medical_id')
+          .doc('emergency_contacts');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingData();
+  }
+
+  @override
+  void dispose() {
+    _primaryNameCtrl.dispose();
+    _primaryPhoneCtrl.dispose();
+    _secondaryNameCtrl.dispose();
+    _secondaryPhoneCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Load existing data ───────────────────────────
+  Future<void> _loadExistingData() async {
+    try {
+      final doc = await _contactsDoc.get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          // Primary
+          _primaryNameCtrl.text  = data['primary_name'] ?? '';
+          _primaryPhoneCtrl.text = data['primary_phone'] ?? '';
+          _primaryRelation = data['primary_relation'] ?? 'Spouse';
+          if (!_relations.contains(_primaryRelation)) _primaryRelation = 'Other';
+
+          // Secondary
+          _secondaryNameCtrl.text  = data['secondary_name'] ?? '';
+          _secondaryPhoneCtrl.text = data['secondary_phone'] ?? '';
+          _secondaryRelation = data['secondary_relation'] ?? 'Sibling';
+          if (!_relations.contains(_secondaryRelation)) _secondaryRelation = 'Other';
+
+          _showOnLockScreen = data['show_on_lock_screen'] ?? true;
+          _isLoaded = true;
+        });
+      } else {
+        if (mounted) setState(() => _isLoaded = true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoaded = true);
+      debugPrint('Error loading contacts: $e');
+    }
+  }
+
+  // ── Save & Finish ────────────────────────────────
+  Future<void> _saveAndFinish() async {
+    HapticFeedback.selectionClick();
+    setState(() => _isSaving = true);
+
+    try {
+      // Save to medical_id/emergency_contacts
+      await _contactsDoc.set({
+        'primary_name': _primaryNameCtrl.text.trim(),
+        'primary_phone': _primaryPhoneCtrl.text.trim(),
+        'primary_relation': _primaryRelation,
+        'secondary_name': _secondaryNameCtrl.text.trim(),
+        'secondary_phone': _secondaryPhoneCtrl.text.trim(),
+        'secondary_relation': _secondaryRelation,
+        'show_on_lock_screen': _showOnLockScreen,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Also sync primary contact to the caregivers collection
+      // so it appears in the Care Team screen
+      final uid = AuthService.currentUserId!;
+      final primaryName = _primaryNameCtrl.text.trim();
+      if (primaryName.isNotEmpty) {
+        final caregiversRef = FirebaseFirestore.instance
+            .collection('users').doc(uid).collection('caregivers');
+
+        // Check if this contact already exists (by name)
+        final existing = await caregiversRef
+            .where('name', isEqualTo: primaryName)
+            .limit(1)
+            .get();
+
+        if (existing.docs.isEmpty) {
+          await caregiversRef.add({
+            'name': primaryName,
+            'phone': _primaryPhoneCtrl.text.trim(),
+            'relation': _primaryRelation,
+            'alert_missed_dose': true,
+            'alert_hw_offline': false,
+            'alert_monthly': true,
+            'created_at': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text('✅ Medical ID complete! Profile saved.',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          backgroundColor: _S.emerald,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ));
+
+        // Pop all the way back to Profile
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save: $e',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,41 +198,44 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
             _buildTopBar(),
             Container(height: 1, color: _S.surfContainerHighest.withOpacity(0.5)),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProgressHeader(),
-                    const SizedBox(height: 32),
-                    _buildHeadline(),
-                    const SizedBox(height: 32),
-                    _buildContactSection(
-                      title: 'PRIMARY CONTACT',
-                      accentColor: _S.secondary,
-                      borderLeft: true,
-                      nameCtrl: _primaryNameCtrl,
-                      phoneCtrl: _primaryPhoneCtrl,
-                      relation: _primaryRelation,
-                      onRelationChanged: (v) => setState(() => _primaryRelation = v!),
+              child: !_isLoaded
+                  ? const Center(child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: _S.secondary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildProgressHeader(),
+                          const SizedBox(height: 32),
+                          _buildHeadline(),
+                          const SizedBox(height: 32),
+                          _buildContactSection(
+                            title: 'PRIMARY CONTACT',
+                            accentColor: _S.secondary,
+                            borderLeft: true,
+                            nameCtrl: _primaryNameCtrl,
+                            phoneCtrl: _primaryPhoneCtrl,
+                            relation: _primaryRelation,
+                            onRelationChanged: (v) => setState(() => _primaryRelation = v!),
+                          ),
+                          const SizedBox(height: 32),
+                          _buildContactSection(
+                            title: 'SECONDARY CONTACT',
+                            accentColor: _S.outlineVariant,
+                            borderLeft: false,
+                            nameCtrl: _secondaryNameCtrl,
+                            phoneCtrl: _secondaryPhoneCtrl,
+                            relation: _secondaryRelation,
+                            onRelationChanged: (v) => setState(() => _secondaryRelation = v!),
+                          ),
+                          const SizedBox(height: 32),
+                          _buildLockScreenToggle(),
+                          const SizedBox(height: 32),
+                          _buildSummaryInsight(),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    _buildContactSection(
-                      title: 'SECONDARY CONTACT',
-                      accentColor: _S.outlineVariant,
-                      borderLeft: false,
-                      nameCtrl: _secondaryNameCtrl,
-                      phoneCtrl: _secondaryPhoneCtrl,
-                      relation: _secondaryRelation,
-                      onRelationChanged: (v) => setState(() => _secondaryRelation = v!),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildLockScreenToggle(),
-                    const SizedBox(height: 32),
-                    _buildSummaryInsight(),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -119,24 +266,22 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
             ],
           ),
           GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              _snack('Medical ID saved successfully!');
-              // Pop all the way back to Profile
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
+            onTap: _isSaving ? null : _saveAndFinish,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: _S.primaryContainer,
+                color: _isSaving ? _S.surfContainerHigh : _S.primaryContainer,
                 borderRadius: BorderRadius.circular(6),
-                boxShadow: [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
+                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
                     offset: const Offset(0, 4), blurRadius: 12)],
               ),
-              child: Text('Save &\nContinue',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: Colors.white, height: 1.2)),
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text('Save &\nContinue',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
+                          color: Colors.white, height: 1.2)),
             ),
           ),
         ],
@@ -404,15 +549,5 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
         ),
       ),
     );
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-      backgroundColor: _S.secondary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      margin: const EdgeInsets.all(16),
-    ));
   }
 }

@@ -79,13 +79,13 @@ class AppCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(radius),
-        splashColor: AppColors.teal.withOpacity(0.04),
-        highlightColor: AppColors.teal.withOpacity(0.02),
+        splashColor: AppColors.teal.withValues(alpha: 0.04),
+        highlightColor: AppColors.teal.withValues(alpha: 0.02),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
             boxShadow: AppColors.cardShadow,
-            border: Border.all(color: AppColors.border.withOpacity(0.5), width: 0.5),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5), width: 0.5),
           ),
           child: Padding(
             padding: padding ?? const EdgeInsets.all(16),
@@ -206,7 +206,7 @@ class _PillToggleState extends State<PillToggle> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 4, offset: const Offset(0, 1))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1))],
               ),
             ),
           ),
@@ -331,7 +331,7 @@ class QuickActionItem extends StatelessWidget {
               color: AppColors.white,
               borderRadius: BorderRadius.circular(kRadius),
               boxShadow: AppColors.cardShadow,
-              border: Border.all(color: AppColors.border.withOpacity(0.6), width: 0.5),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.6), width: 0.5),
             ),
             child: Center(
               child: Container(
@@ -419,7 +419,7 @@ class StatMiniCard extends StatelessWidget {
       label: label,
       subLabel: subLabel,
       accent: accentColor,
-      accentBg: accentColor.withOpacity(0.1),
+      accentBg: accentColor.withValues(alpha: 0.1),
     );
   }
 }

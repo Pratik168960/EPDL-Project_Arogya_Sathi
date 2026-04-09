@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import 'medical_id_conditions_screen.dart';
 
 // ═══════════════════════════════════════════════
@@ -18,10 +20,12 @@ class _S {
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outline           = Color(0xFF74777D);
   static const Color onPrimary         = Color(0xFFFFFFFF);
+  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
 //  MEDICAL ID: BASIC HEALTH (Step 1 of 3)
+//  Phase 3: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class MedicalIdBasicHealthScreen extends StatefulWidget {
   const MedicalIdBasicHealthScreen({super.key});
@@ -35,6 +39,8 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
   final _weightCtrl = TextEditingController();
   String? _bloodType;
   bool _organDonor = true;
+  bool _isSaving = false;
+  bool _isLoaded = false;
 
   final _bloodTypes = [
     'A Positive (A+)', 'A Negative (A-)',
@@ -43,6 +49,99 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
     'O Positive (O+)', 'O Negative (O-)',
     'Unknown / Not Sure',
   ];
+
+  // ── Firestore Reference ──────────────────────
+  DocumentReference<Map<String, dynamic>> get _medicalIdDoc =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('medical_id')
+          .doc('basic_health');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingData();
+  }
+
+  @override
+  void dispose() {
+    _heightCtrl.dispose();
+    _weightCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Load existing data from Firestore ────────────
+  Future<void> _loadExistingData() async {
+    try {
+      final doc = await _medicalIdDoc.get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _heightCtrl.text = data['height'] ?? '';
+          _weightCtrl.text = data['weight'] ?? '';
+          _bloodType = data['blood_type'];
+          _organDonor = data['organ_donor'] ?? true;
+          _isLoaded = true;
+        });
+      } else {
+        if (mounted) setState(() => _isLoaded = true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoaded = true);
+      debugPrint('Error loading medical ID: $e');
+    }
+  }
+
+  // ── Save data to Firestore ───────────────────────
+  Future<void> _saveAndContinue() async {
+    HapticFeedback.selectionClick();
+    setState(() => _isSaving = true);
+
+    try {
+      await _medicalIdDoc.set({
+        'height': _heightCtrl.text.trim(),
+        'weight': _weightCtrl.text.trim(),
+        'blood_type': _bloodType,
+        'organ_donor': _organDonor,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text('Basic health info saved!',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: _S.emerald,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        ));
+
+        Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const MedicalIdConditionsScreen()));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save: $e',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,25 +153,28 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
             _buildTopBar(),
             Container(height: 1, color: _S.surfContainerHighest.withOpacity(0.5)),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProgressHeader(),
-                    const SizedBox(height: 32),
-                    _buildWhyCard(),
-                    const SizedBox(height: 20),
-                    _buildSecurityBadges(),
-                    const SizedBox(height: 40),
-                    _buildPhysicalAttributes(),
-                    const SizedBox(height: 40),
-                    _buildMedicalSpecs(),
-                    const SizedBox(height: 48),
-                    _buildBottomImage(),
-                  ],
-                ),
-              ),
+              child: !_isLoaded
+                  ? const Center(child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: _S.secondary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildProgressHeader(),
+                          const SizedBox(height: 32),
+                          _buildWhyCard(),
+                          const SizedBox(height: 20),
+                          _buildSecurityBadges(),
+                          const SizedBox(height: 40),
+                          _buildPhysicalAttributes(),
+                          const SizedBox(height: 40),
+                          _buildMedicalSpecs(),
+                          const SizedBox(height: 48),
+                          _buildBottomImage(),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -103,23 +205,22 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
             ],
           ),
           GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => const MedicalIdConditionsScreen()));
-            },
+            onTap: _isSaving ? null : _saveAndContinue,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: _S.primaryContainer,
+                color: _isSaving ? _S.surfContainerHigh : _S.primaryContainer,
                 borderRadius: BorderRadius.circular(6),
-                boxShadow: [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
+                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
                     offset: const Offset(0, 4), blurRadius: 12)],
               ),
-              child: Text('Save &\nContinue',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: Colors.white, height: 1.2)),
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text('Save &\nContinue',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
+                          color: Colors.white, height: 1.2)),
             ),
           ),
         ],

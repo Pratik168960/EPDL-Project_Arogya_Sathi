@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import 'medical_id_contacts_screen.dart';
 
 // ═══════════════════════════════════════════════
@@ -20,10 +22,12 @@ class _S {
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outlineVariant    = Color(0xFFC4C6CC);
   static const Color error             = Color(0xFFBA1A1A);
+  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
 //  MEDICAL ID: CONDITIONS & ALLERGIES (Step 2/3)
+//  Phase 3: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class MedicalIdConditionsScreen extends StatefulWidget {
   const MedicalIdConditionsScreen({super.key});
@@ -34,14 +38,110 @@ class MedicalIdConditionsScreen extends StatefulWidget {
 
 class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
   final _searchCtrl = TextEditingController();
+  bool _isSaving = false;
+  bool _isLoaded = false;
 
   final List<String> _commonAllergens = ['Penicillin', 'Latex', 'Peanuts', 'Shellfish', 'Aspirin', 'Sulfa Drugs'];
   final List<String> _chronicConditions = ['Type 2 Diabetes', 'Hypertension', 'Asthma', 'Epilepsy', 'Heart Disease'];
 
-  final Set<String> _selectedAllergies  = {'Penicillin', 'Latex'};
-  final Set<String> _selectedConditions = {'Type 2 Diabetes', 'Hypertension'};
+  final Set<String> _selectedAllergies  = {};
+  final Set<String> _selectedConditions = {};
 
   int get _totalSelected => _selectedAllergies.length + _selectedConditions.length;
+
+  // ── Firestore Reference ──────────────────────
+  DocumentReference<Map<String, dynamic>> get _conditionsDoc =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('medical_id')
+          .doc('conditions');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingData();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Load existing data ───────────────────────────
+  Future<void> _loadExistingData() async {
+    try {
+      final doc = await _conditionsDoc.get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          final allergies = data['allergies'];
+          if (allergies is List) {
+            _selectedAllergies.addAll(allergies.cast<String>());
+          }
+          final conditions = data['conditions'];
+          if (conditions is List) {
+            _selectedConditions.addAll(conditions.cast<String>());
+          }
+          _isLoaded = true;
+        });
+      } else {
+        if (mounted) setState(() => _isLoaded = true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoaded = true);
+      debugPrint('Error loading conditions: $e');
+    }
+  }
+
+  // ── Save & Continue ──────────────────────────────
+  Future<void> _saveAndContinue() async {
+    HapticFeedback.selectionClick();
+    setState(() => _isSaving = true);
+
+    try {
+      await _conditionsDoc.set({
+        'allergies': _selectedAllergies.toList(),
+        'conditions': _selectedConditions.toList(),
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text('Conditions & allergies saved!',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: _S.emerald,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        ));
+
+        Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const MedicalIdContactsScreen()));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save: $e',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   void _toggleAllergen(String item) {
     HapticFeedback.selectionClick();
@@ -74,25 +174,28 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
           children: [
             _buildTopBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProgressHeader(),
-                    const SizedBox(height: 32),
-                    _buildSearchSection(),
-                    const SizedBox(height: 28),
-                    _buildChipSection('Common Allergens', _commonAllergens, _selectedAllergies, _toggleAllergen),
-                    const SizedBox(height: 24),
-                    _buildChipSection('Chronic Conditions', _chronicConditions, _selectedConditions, _toggleCondition),
-                    const SizedBox(height: 28),
-                    _buildWhyCard(),
-                    const SizedBox(height: 28),
-                    _buildReviewCard(),
-                  ],
-                ),
-              ),
+              child: !_isLoaded
+                  ? const Center(child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: _S.secondary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildProgressHeader(),
+                          const SizedBox(height: 32),
+                          _buildSearchSection(),
+                          const SizedBox(height: 28),
+                          _buildChipSection('Common Allergens', _commonAllergens, _selectedAllergies, _toggleAllergen),
+                          const SizedBox(height: 24),
+                          _buildChipSection('Chronic Conditions', _chronicConditions, _selectedConditions, _toggleCondition),
+                          const SizedBox(height: 28),
+                          _buildWhyCard(),
+                          const SizedBox(height: 28),
+                          _buildReviewCard(),
+                        ],
+                      ),
+                    ),
             ),
             _buildBottomBar(),
           ],
@@ -124,21 +227,20 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
             ],
           ),
           GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => const MedicalIdContactsScreen()));
-            },
+            onTap: _isSaving ? null : _saveAndContinue,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: _S.secondary,
+                color: _isSaving ? _S.surfContainerHigh : _S.secondary,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text('Save &\nContinue',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: _S.onSecondary, height: 1.2)),
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text('Save &\nContinue',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
+                          color: _S.onSecondary, height: 1.2)),
             ),
           ),
         ],
@@ -364,6 +466,16 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
             )),
           ],
 
+          if (_totalSelected == 0) ...[
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text('No items selected yet',
+                    style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+              ),
+            ),
+          ],
+
           // Footer
           const SizedBox(height: 20),
           Container(height: 1, color: _S.surfContainerHigh),
@@ -437,21 +549,20 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
           Expanded(
             flex: 2,
             child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const MedicalIdContactsScreen()));
-              },
+              onTap: _isSaving ? null : _saveAndContinue,
               child: Container(
                 height: 52,
                 decoration: BoxDecoration(
-                  color: _S.secondary,
+                  color: _isSaving ? _S.surfContainerHigh : _S.secondary,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
-                  child: Text('Continue',
-                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700,
-                          color: _S.onSecondary)),
+                  child: _isSaving
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text('Continue',
+                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700,
+                              color: _S.onSecondary)),
                 ),
               ),
             ),
@@ -459,15 +570,5 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
         ],
       ),
     );
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-      backgroundColor: _S.secondary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      margin: const EdgeInsets.all(16),
-    ));
   }
 }

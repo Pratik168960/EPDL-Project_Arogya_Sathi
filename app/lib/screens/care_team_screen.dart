@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import 'emergency_sos_screen.dart';
 
 // ═══════════════════════════════════════════════
@@ -26,6 +28,7 @@ class _S {
 
 // ═══════════════════════════════════════════════
 //  MY CARE TEAM SCREEN
+//  Phase 2: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class CareTeamScreen extends StatefulWidget {
   const CareTeamScreen({super.key});
@@ -35,9 +38,20 @@ class CareTeamScreen extends StatefulWidget {
 }
 
 class _CareTeamScreenState extends State<CareTeamScreen> {
-  bool _missedDoseAlerts = true;
-  bool _hardwareOffline  = false;
-  bool _monthlyReports   = true;
+  bool _isSending = false;
+
+  // ── Firestore References ─────────────────────
+  CollectionReference<Map<String, dynamic>> get _caregiversRef =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('caregivers');
+
+  CollectionReference<Map<String, dynamic>> get _alertsRef =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('alerts');
 
   @override
   Widget build(BuildContext context) {
@@ -62,16 +76,35 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                     _buildAddButton(),
                     const SizedBox(height: 32),
 
-                    // Active Contacts
+                    // Active Contacts — STREAM-DRIVEN
                     _buildSectionLabel('ACTIVE CONTACTS'),
                     const SizedBox(height: 20),
 
-                    // Primary Contact Card
-                    _buildPrimaryContactCard(),
-                    const SizedBox(height: 20),
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _caregiversRef.orderBy('created_at', descending: false).snapshots(),
+                      builder: (context, snapshot) {
+                        // Loading
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return _buildLoadingState();
+                        }
 
-                    // Secondary + Invite Row
-                    _buildSecondaryRow(),
+                        // Error
+                        if (snapshot.hasError) {
+                          return _buildErrorState(snapshot.error.toString());
+                        }
+
+                        final docs = snapshot.data?.docs ?? [];
+
+                        // Empty state
+                        if (docs.isEmpty) {
+                          return _buildEmptyState();
+                        }
+
+                        // Build contact cards from Firestore
+                        return _buildContactsList(docs);
+                      },
+                    ),
+
                     const SizedBox(height: 48),
 
                     // Emergency Protocols
@@ -83,6 +116,325 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // ── LOADING STATE ────────────────────────────────
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: _S.secondary),
+            ),
+            const SizedBox(height: 12),
+            Text('Loading contacts...',
+                style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── ERROR STATE ──────────────────────────────────
+  Widget _buildErrorState(String error) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, size: 32, color: _S.error.withOpacity(0.6)),
+            const SizedBox(height: 10),
+            Text('Failed to load contacts',
+                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                    color: _S.primaryContainer)),
+            const SizedBox(height: 4),
+            Text(error, textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(fontSize: 11, color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── EMPTY STATE ──────────────────────────────────
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      decoration: BoxDecoration(
+        color: _S.surfContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _S.outlineVariant.withOpacity(0.3), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.people_outline, size: 40, color: _S.outlineVariant),
+          const SizedBox(height: 16),
+          Text('No contacts added yet',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700,
+                  color: _S.primaryContainer)),
+          const SizedBox(height: 6),
+          Text('Tap the button above to add your first\ncarearegiver or emergency contact.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  // ── CONTACTS LIST (Firestore-driven) ─────────────
+  Widget _buildContactsList(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    final List<Widget> cards = [];
+
+    for (int i = 0; i < docs.length; i++) {
+      final data = docs[i].data();
+      final docId = docs[i].id;
+      final name = (data['name'] ?? 'Unknown') as String;
+      final phone = (data['phone'] ?? '') as String;
+      final relation = (data['relation'] ?? '') as String;
+      final isPrimary = i == 0; // First contact is "Primary"
+
+      // Alert toggle states (stored per-doc or default)
+      final missedDose = data['alert_missed_dose'] ?? true;
+      final hwOffline  = data['alert_hw_offline'] ?? false;
+      final monthly    = data['alert_monthly'] ?? true;
+
+      cards.add(_buildContactCard(
+        docId: docId,
+        name: name,
+        phone: phone,
+        relation: relation,
+        isPrimary: isPrimary,
+        missedDose: missedDose as bool,
+        hwOffline: hwOffline as bool,
+        monthly: monthly as bool,
+      ));
+
+      if (i < docs.length - 1) {
+        cards.add(const SizedBox(height: 20));
+      }
+    }
+
+    // Append the "Invite New" card
+    cards.add(const SizedBox(height: 20));
+    cards.add(_buildInviteCard());
+
+    return Column(children: cards);
+  }
+
+  // ── SINGLE CONTACT CARD (reusable, Stitch layout) ─
+  Widget _buildContactCard({
+    required String docId,
+    required String name,
+    required String phone,
+    required String relation,
+    required bool isPrimary,
+    required bool missedDose,
+    required bool hwOffline,
+    required bool monthly,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _S.surfLowest,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 24)],
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Stack(
+        children: [
+          // Left accent strip
+          Positioned(left: 0, top: 0, bottom: 0,
+            child: Container(width: 4, color: _S.secondary.withOpacity(0.8))),
+
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Contact info row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 56, height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _S.surfContainer,
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700,
+                              color: _S.secondary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name,
+                              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
+                                  color: _S.primaryContainer)),
+                          const SizedBox(height: 6),
+                          // Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _S.secondary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                                isPrimary
+                                    ? 'PRIMARY EMERGENCY CONTACT'
+                                    : relation.toUpperCase(),
+                                style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w800,
+                                    color: _S.secondary, letterSpacing: 0.3)),
+                          ),
+                          if (phone.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            // Phone
+                            Row(
+                              children: [
+                                const Icon(Icons.call, size: 14, color: _S.onSurfaceVariant),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(phone,
+                                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500,
+                                          color: _S.onSurfaceVariant)),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          // Edit
+                          GestureDetector(
+                            onTap: () => _snack('Edit contact: $name'),
+                            child: Text('Edit Contact',
+                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                                    color: _S.secondary, decoration: TextDecoration.underline)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Divider
+                const SizedBox(height: 24),
+                Container(height: 1, color: _S.surfContainer),
+                const SizedBox(height: 20),
+
+                // Alert Toggles — wired to Firestore
+                _alertToggle(
+                  title: 'Receive Missed Dose Alerts',
+                  subtitle: 'Immediate notification if a medication window is missed.',
+                  value: missedDose,
+                  onChanged: (v) => _updateToggle(docId, 'alert_missed_dose', v),
+                ),
+                const SizedBox(height: 18),
+                _alertToggle(
+                  title: 'Hardware Offline Alerts',
+                  subtitle: 'Notified if the smart dispenser loses connectivity.',
+                  value: hwOffline,
+                  onChanged: (v) => _updateToggle(docId, 'alert_hw_offline', v),
+                ),
+                const SizedBox(height: 18),
+                _alertToggle(
+                  title: 'Monthly Reports',
+                  subtitle: 'Detailed adherence summary sent via email every 30 days.',
+                  value: monthly,
+                  onChanged: (v) => _updateToggle(docId, 'alert_monthly', v),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Update toggle in Firestore ───────────────────
+  Future<void> _updateToggle(String docId, String field, bool value) async {
+    HapticFeedback.selectionClick();
+    try {
+      await _caregiversRef.doc(docId).update({field: value});
+    } catch (e) {
+      _snack('Failed to update setting');
+    }
+  }
+
+  // ── INVITE CARD ──────────────────────────────────
+  Widget _buildInviteCard() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _snack('Add new caregiver');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _S.surfContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _S.outlineVariant.withOpacity(0.3),
+            width: 2,
+            strokeAlign: BorderSide.strokeAlignInside,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.person_add, size: 24, color: _S.outlineVariant),
+            const SizedBox(height: 8),
+            Text('Invite New',
+                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                    color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _alertToggle({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                      color: _S.onSurface)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: GoogleFonts.outfit(fontSize: 11, color: _S.onSurfaceVariant, height: 1.3)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeColor: Colors.white,
+          activeTrackColor: _S.secondary,
+          inactiveThumbColor: Colors.white,
+          inactiveTrackColor: _S.surfContainerHighest,
+        ),
+      ],
     );
   }
 
@@ -168,249 +520,6 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     );
   }
 
-  // ── PRIMARY CONTACT CARD ─────────────────────────
-  Widget _buildPrimaryContactCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _S.surfLowest,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 24)],
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
-        children: [
-          // Left accent strip
-          Positioned(left: 0, top: 0, bottom: 0,
-            child: Container(width: 4, color: _S.secondary.withOpacity(0.8))),
-
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Contact info row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Avatar
-                    Container(
-                      width: 56, height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _S.surfContainer,
-                      ),
-                      child: const Icon(Icons.person, size: 28, color: _S.onSurfaceVariant),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Sarah Jenkins',
-                              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
-                                  color: _S.primaryContainer)),
-                          const SizedBox(height: 6),
-                          // Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: _S.secondary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text('PRIMARY EMERGENCY CONTACT',
-                                style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w800,
-                                    color: _S.secondary, letterSpacing: 0.3)),
-                          ),
-                          const SizedBox(height: 8),
-                          // Phone
-                          Row(
-                            children: [
-                              const Icon(Icons.call, size: 14, color: _S.onSurfaceVariant),
-                              const SizedBox(width: 6),
-                              Text('+1 (555) 012-3456',
-                                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500,
-                                      color: _S.onSurfaceVariant)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // Edit
-                          GestureDetector(
-                            onTap: () => _snack('Edit contact'),
-                            child: Text('Edit Contact',
-                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
-                                    color: _S.secondary, decoration: TextDecoration.underline)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Divider
-                const SizedBox(height: 24),
-                Container(height: 1, color: _S.surfContainer),
-                const SizedBox(height: 20),
-
-                // Alert Toggles
-                _alertToggle(
-                  title: 'Receive Missed Dose Alerts',
-                  subtitle: 'Immediate notification if a medication window is missed.',
-                  value: _missedDoseAlerts,
-                  onChanged: (v) => setState(() => _missedDoseAlerts = v),
-                ),
-                const SizedBox(height: 18),
-                _alertToggle(
-                  title: 'Hardware Offline Alerts',
-                  subtitle: 'Notified if the smart dispenser loses connectivity.',
-                  value: _hardwareOffline,
-                  onChanged: (v) => setState(() => _hardwareOffline = v),
-                ),
-                const SizedBox(height: 18),
-                _alertToggle(
-                  title: 'Monthly Reports',
-                  subtitle: 'Detailed adherence summary sent via email every 30 days.',
-                  value: _monthlyReports,
-                  onChanged: (v) => setState(() => _monthlyReports = v),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _alertToggle({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
-                      color: _S.onSurface)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: GoogleFonts.outfit(fontSize: 11, color: _S.onSurfaceVariant, height: 1.3)),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Switch.adaptive(
-          value: value,
-          onChanged: (v) {
-            HapticFeedback.selectionClick();
-            onChanged(v);
-          },
-          activeColor: Colors.white,
-          activeTrackColor: _S.secondary,
-          inactiveThumbColor: Colors.white,
-          inactiveTrackColor: _S.surfContainerHighest,
-        ),
-      ],
-    );
-  }
-
-  // ── SECONDARY ROW ────────────────────────────────
-  Widget _buildSecondaryRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Dr. Michael Chen card
-        Expanded(
-          flex: 2,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _S.surfContainerLow,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _S.surfContainerHigh,
-                      ),
-                      child: const Icon(Icons.person, size: 22, color: _S.onSurfaceVariant),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Dr. Michael Chen',
-                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700,
-                                  color: _S.primaryContainer)),
-                          Text('PHYSICIAN',
-                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w500,
-                                  color: _S.onSurfaceVariant, letterSpacing: 1.0)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                GestureDetector(
-                  onTap: () => _snack('View details'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _S.surfLowest,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text('View Details',
-                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
-                            color: _S.secondary)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-
-        // Invite New card
-        Expanded(
-          flex: 1,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _S.surfContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _S.outlineVariant.withOpacity(0.3),
-                width: 2,
-                strokeAlign: BorderSide.strokeAlignInside,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.person_add, size: 24, color: _S.outlineVariant),
-                const SizedBox(height: 8),
-                Text('Invite New',
-                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
-                        color: _S.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // ── EMERGENCY PROTOCOLS ──────────────────────────
   Widget _buildEmergencySection() {
     return Column(
@@ -441,13 +550,9 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
               ),
               const SizedBox(height: 24),
 
-              // SOS Trigger Button
+              // SOS Trigger Button — Writes to Firestore
               GestureDetector(
-                onTap: () {
-                  HapticFeedback.heavyImpact();
-                  Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const EmergencySosScreen()));
-                },
+                onTap: _isSending ? null : _triggerSOS,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 18),
@@ -455,18 +560,23 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: _S.error, width: 2),
                   ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_isSending)
+                        const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _S.error))
+                      else
                         const Icon(Icons.warning, size: 20, color: _S.error),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Text('TRIGGER SOS ALERT NOW',
-                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w900,
-                                  color: _S.error, letterSpacing: 1.5)),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                            _isSending ? 'SENDING ALERT...' : 'TRIGGER SOS ALERT NOW',
+                            style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w900,
+                                color: _S.error, letterSpacing: 1.5)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -474,6 +584,50 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         ),
       ],
     );
+  }
+
+  // ── SOS ACTION — Writes to Firestore ─────────────
+  Future<void> _triggerSOS() async {
+    HapticFeedback.heavyImpact();
+    setState(() => _isSending = true);
+
+    try {
+      await _alertsRef.add({
+        'type': 'SOS_TRIGGERED',
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'active',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text('🚨 SOS Alert sent to all emergency contacts!',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: _S.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ));
+
+        // Also navigate to SOS screen
+        Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const EmergencySosScreen()));
+      }
+    } catch (e) {
+      if (mounted) {
+        _snack('Failed to send SOS alert: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
   }
 
   void _snack(String msg) {

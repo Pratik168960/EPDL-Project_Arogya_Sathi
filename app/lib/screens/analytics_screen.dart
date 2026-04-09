@@ -1,7 +1,10 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import '../services/auth_service.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens
@@ -20,10 +23,13 @@ class _S {
   static const Color onSurface         = Color(0xFF181C1E);
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outlineVariant    = Color(0xFFC4C6CC);
+  static const Color warning           = Color(0xFFF59E0B);
+  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
 //  ANALYTICS SCREEN
+//  Phase 2: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -35,16 +41,12 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _selectedTab = 0; // 0 = Weekly, 1 = Monthly
 
-  // Bar chart data: heights as fractions (0..1)
-  final List<_BarData> _weeklyBars = [
-    _BarData('MON', 0.90, true),
-    _BarData('TUE', 0.85, true),
-    _BarData('WED', 0.30, false), // Missed
-    _BarData('THU', 0.95, true),
-    _BarData('FRI', 0.80, true),
-    _BarData('SAT', 0.20, false), // Missed
-    _BarData('SUN', 1.00, true),
-  ];
+  // ── Firestore Reference ──────────────────────
+  CollectionReference<Map<String, dynamic>> get _historyRef =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('history');
 
   @override
   Widget build(BuildContext context) {
@@ -61,19 +63,220 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   children: [
                     _buildSegmentedToggle(),
                     const SizedBox(height: 40),
-                    _buildProgressRing(),
-                    const SizedBox(height: 28),
-                    _buildStreakBanner(),
-                    const SizedBox(height: 48),
-                    _buildActivityLogs(),
-                    const SizedBox(height: 40),
-                    _buildHealthInsights(),
+
+                    // ── STREAM-DRIVEN ANALYTICS ──────────
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _historyRef.orderBy('taken_at', descending: true).snapshots(),
+                      builder: (context, snapshot) {
+                        // Loading
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return _buildLoadingState();
+                        }
+
+                        // Error
+                        if (snapshot.hasError) {
+                          return _buildErrorState(snapshot.error.toString());
+                        }
+
+                        final docs = snapshot.data?.docs ?? [];
+
+                        // ── CALCULATE STATS ─────────────
+                        final int totalLogs = docs.length;
+                        int takenCount = 0;
+                        int missedCount = 0;
+
+                        // For the 7-day bar chart
+                        final now = DateTime.now();
+                        final Map<int, _DayStats> last7Days = {};
+                        for (int i = 6; i >= 0; i--) {
+                          final day = now.subtract(Duration(days: i));
+                          last7Days[_dayKey(day)] = _DayStats();
+                        }
+
+                        // Current streak tracking
+                        int currentStreak = 0;
+                        bool streakBroken = false;
+
+                        // Process all docs
+                        for (final doc in docs) {
+                          final data = doc.data();
+                          final status = (data['status'] ?? '') as String;
+                          final takenAt = data['taken_at'];
+
+                          // Count taken vs missed
+                          // "Taken On Time" or any status containing "Taken" = taken
+                          final isTaken = status.toLowerCase().contains('taken');
+                          if (isTaken) {
+                            takenCount++;
+                          } else {
+                            missedCount++;
+                          }
+
+                          // Populate 7-day chart
+                          if (takenAt != null && takenAt is Timestamp) {
+                            final date = takenAt.toDate();
+                            final key = _dayKey(date);
+                            if (last7Days.containsKey(key)) {
+                              if (isTaken) {
+                                last7Days[key]!.taken++;
+                              } else {
+                                last7Days[key]!.missed++;
+                              }
+                            }
+                          }
+                        }
+
+                        // Calculate streak (consecutive days with at least 1 taken)
+                        for (int i = 0; i <= 30 && !streakBroken; i++) {
+                          final day = now.subtract(Duration(days: i));
+                          final key = _dayKey(day);
+                          // Check if that day had any taken logs
+                          bool hadTaken = false;
+                          for (final doc in docs) {
+                            final data = doc.data();
+                            final takenAt = data['taken_at'];
+                            if (takenAt != null && takenAt is Timestamp) {
+                              final d = takenAt.toDate();
+                              if (_dayKey(d) == key &&
+                                  (data['status'] ?? '').toString().toLowerCase().contains('taken')) {
+                                hadTaken = true;
+                                break;
+                              }
+                            }
+                          }
+                          if (hadTaken) {
+                            currentStreak++;
+                          } else if (i > 0) {
+                            // Don't break on today if no logs yet
+                            streakBroken = true;
+                          }
+                        }
+
+                        // Adherence percentage
+                        final double adherencePercent = totalLogs > 0
+                            ? (takenCount / totalLogs * 100)
+                            : 0.0;
+                        final int adherenceRounded = adherencePercent.round();
+                        final bool isGoodAdherence = adherenceRounded >= 80;
+
+                        // Build bar chart data
+                        final List<_BarData> barData = [];
+                        for (int i = 6; i >= 0; i--) {
+                          final day = now.subtract(Duration(days: i));
+                          final key = _dayKey(day);
+                          final stats = last7Days[key]!;
+                          final total = stats.taken + stats.missed;
+                          final label = DateFormat('E').format(day).toUpperCase().substring(0, 3);
+                          if (total > 0) {
+                            final ratio = stats.taken / total;
+                            barData.add(_BarData(label, ratio.clamp(0.05, 1.0), stats.missed == 0));
+                          } else {
+                            barData.add(_BarData(label, 0.05, true)); // Empty day — tiny bar
+                          }
+                        }
+
+                        // Empty state
+                        if (totalLogs == 0) {
+                          return _buildEmptyState();
+                        }
+
+                        return Column(
+                          children: [
+                            _buildProgressRing(adherenceRounded, isGoodAdherence),
+                            const SizedBox(height: 28),
+                            _buildStreakBanner(currentStreak, isGoodAdherence, adherenceRounded),
+                            const SizedBox(height: 16),
+                            _buildStatsRow(totalLogs, takenCount, missedCount),
+                            const SizedBox(height: 48),
+                            _buildActivityLogs(barData),
+                            const SizedBox(height: 40),
+                            _buildHealthInsights(adherenceRounded, isGoodAdherence),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Helper: day key for grouping ─────────────────
+  int _dayKey(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
+
+  // ── LOADING STATE ────────────────────────────────
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          children: [
+            const SizedBox(width: 32, height: 32,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: _S.secondary)),
+            const SizedBox(height: 16),
+            Text('Calculating analytics...',
+                style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── ERROR STATE ──────────────────────────────────
+  Widget _buildErrorState(String error) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, size: 36, color: _S.warning),
+            const SizedBox(height: 12),
+            Text('Failed to load analytics',
+                style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600,
+                    color: _S.primaryContainer)),
+            const SizedBox(height: 4),
+            Text(error, textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(fontSize: 11, color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── EMPTY STATE ──────────────────────────────────
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Column(
+        children: [
+          _buildProgressRing(0, false),
+          const SizedBox(height: 28),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            decoration: BoxDecoration(
+              color: _S.surfContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.analytics_outlined, size: 40, color: _S.outlineVariant),
+                const SizedBox(height: 16),
+                Text('No medication history yet',
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700,
+                        color: _S.primaryContainer)),
+                const SizedBox(height: 6),
+                Text('Take your first medication to start\ntracking your adherence.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -159,8 +362,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // ── PROGRESS RING ────────────────────────────────
-  Widget _buildProgressRing() {
+  // ── PROGRESS RING (dynamic) ──────────────────────
+  Widget _buildProgressRing(int percent, bool isGood) {
+    final double progress = (percent / 100).clamp(0.0, 1.0);
+    final Color ringColor = isGood ? _S.secondary : _S.warning;
+
     return SizedBox(
       width: 220, height: 220,
       child: Stack(
@@ -169,15 +375,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           CustomPaint(
             size: const Size(220, 220),
             painter: _AdherenceRingPainter(
-              progress: 0.92,
+              progress: progress,
               bgColor: _S.surfContainer,
-              fgColor: _S.secondary,
+              fgColor: ringColor,
             ),
           ),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('92%',
+              Text('$percent%',
                   style: GoogleFonts.outfit(fontSize: 44, fontWeight: FontWeight.w800,
                       color: _S.primaryContainer, letterSpacing: -1.5)),
               const SizedBox(height: 2),
@@ -191,23 +397,76 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // ── STREAK BANNER ────────────────────────────────
-  Widget _buildStreakBanner() {
+  // ── STREAK BANNER (dynamic) ──────────────────────
+  Widget _buildStreakBanner(int streak, bool isGood, int percent) {
+    final String message;
+    final Color bgColor;
+
+    if (isGood) {
+      message = streak > 1
+          ? '🎉 Great job! You are on a $streak-day streak.'
+          : '🎉 Great job! Your adherence is $percent%.';
+      bgColor = _S.surfContainerLow;
+    } else {
+      message = percent > 0
+          ? '⚠️ Your adherence is $percent%. Try to stay consistent.'
+          : 'Start taking your medications to build a streak!';
+      bgColor = _S.warning.withOpacity(0.08);
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       decoration: BoxDecoration(
-        color: _S.surfContainerLow,
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
+        border: isGood ? null : Border.all(color: _S.warning.withOpacity(0.2)),
       ),
-      child: Text('Great job! You are on a 14-day streak.',
+      child: Text(message,
           textAlign: TextAlign.center,
           style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500,
               color: _S.onSurface, height: 1.4)),
     );
   }
 
-  // ── ACTIVITY LOGS (BAR CHART) ────────────────────
-  Widget _buildActivityLogs() {
+  // ── STATS ROW (Total / Taken / Missed) ───────────
+  Widget _buildStatsRow(int total, int taken, int missed) {
+    return Row(
+      children: [
+        _statCard('Total Logs', '$total', _S.primaryContainer),
+        const SizedBox(width: 12),
+        _statCard('Taken', '$taken', _S.emerald),
+        const SizedBox(width: 12),
+        _statCard('Missed', '$missed', missed > 0 ? _S.warning : _S.onSurfaceVariant),
+      ],
+    );
+  }
+
+  Widget _statCard(String label, String value, Color valueColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: _S.surfLowest,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 12)],
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800,
+                    color: valueColor)),
+            const SizedBox(height: 4),
+            Text(label.toUpperCase(),
+                style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w700,
+                    color: _S.onSurfaceVariant, letterSpacing: 1.0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── ACTIVITY LOGS BAR CHART (dynamic) ────────────
+  Widget _buildActivityLogs(List<_BarData> bars) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,7 +495,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 height: 180,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: _weeklyBars.map((bar) {
+                  children: bars.map((bar) {
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -299,14 +558,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // ── HEALTH INSIGHTS ──────────────────────────────
-  Widget _buildHealthInsights() {
+  // ── HEALTH INSIGHTS (dynamic) ────────────────────
+  Widget _buildHealthInsights(int adherencePercent, bool isGood) {
+    final String insightText;
+    final IconData trendIcon;
+    final Color trendColor;
+
+    if (isGood) {
+      insightText = 'Your medication adherence is at $adherencePercent%. '
+          'Keep up the excellent work — consistent adherence is key to better health outcomes.';
+      trendIcon = Icons.trending_up;
+      trendColor = _S.emerald;
+    } else {
+      insightText = 'Your medication adherence is at $adherencePercent%. '
+          'Try setting reminders and keeping medications visible to improve your consistency.';
+      trendIcon = Icons.trending_down;
+      trendColor = _S.warning;
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _S.surfLowest,
         borderRadius: BorderRadius.circular(12),
-        border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
+        border: Border(left: BorderSide(color: isGood ? _S.secondary : _S.warning, width: 4)),
         boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 24)],
       ),
       child: Column(
@@ -318,29 +593,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Text('HEALTH INSIGHTS',
                   style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700,
                       color: _S.primaryContainer, letterSpacing: 1.5)),
-              const Icon(Icons.trending_up, size: 16, color: _S.secondary),
+              Icon(trendIcon, size: 16, color: trendColor),
             ],
           ),
           const SizedBox(height: 16),
-          RichText(
-            text: TextSpan(
+          Text(insightText,
               style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w500,
-                  color: _S.onSurface, height: 1.4),
-              children: [
-                const TextSpan(text: 'Your blood pressure medication compliance has improved by '),
-                TextSpan(text: '15%', style: GoogleFonts.outfit(
-                    fontSize: 16, fontWeight: FontWeight.w700, color: _S.secondary)),
-                const TextSpan(text: ' this month.'),
-              ],
-            ),
-          ),
+                  color: _S.onSurface, height: 1.4)),
           const SizedBox(height: 20),
           // Sparkline
           SizedBox(
             height: 48,
             width: double.infinity,
             child: CustomPaint(
-              painter: _SparklinePainter(color: _S.secondary),
+              painter: _SparklinePainter(color: isGood ? _S.secondary : _S.warning),
             ),
           ),
         ],
@@ -357,6 +623,14 @@ class _BarData {
   final double height;
   final bool taken;
   _BarData(this.label, this.height, this.taken);
+}
+
+// ═══════════════════════════════════════════════
+//  Day Stats (for 7-day grouping)
+// ═══════════════════════════════════════════════
+class _DayStats {
+  int taken = 0;
+  int missed = 0;
 }
 
 // ═══════════════════════════════════════════════
@@ -393,7 +667,7 @@ class _AdherenceRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AdherenceRingPainter old) => old.progress != progress;
+  bool shouldRepaint(_AdherenceRingPainter old) => old.progress != progress || old.fgColor != fgColor;
 }
 
 // ═══════════════════════════════════════════════

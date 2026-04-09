@@ -6,7 +6,6 @@ import 'dart:math' as math;
 import '../services/notification_service.dart';
 import '../services/auth_service.dart'; // <-- ADDED THIS IMPORT
 import '../theme/app_theme.dart';
-import '../models/models.dart';
 import '../widgets/common_widgets.dart';
 
 // ═══════════════════════════════════════════════
@@ -25,8 +24,8 @@ class _RemindersScreenState extends State<RemindersScreen>
   // Local reminder toggle state per med id
   final Map<String, bool> _toggleState = {};
 
-  int _waterCount = DummyData.waterGlassesDone;
-  final int _waterGoal = DummyData.waterGlassesGoal;
+  int _waterCount = 5;
+  final int _waterGoal = 8;
 
   late AnimationController _ringCtrl;
   late Animation<double> _ringAnim;

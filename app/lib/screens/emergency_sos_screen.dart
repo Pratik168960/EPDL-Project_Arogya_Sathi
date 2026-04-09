@@ -1,8 +1,9 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/models.dart';
+import '../services/auth_service.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens (exact from HTML)
@@ -38,8 +39,29 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
   late AnimationController _countdownController;
   int _seconds = 5;
   bool _cancelled = false;
+  bool _alertWritten = false;
 
-  final UserProfile user = DummyData.user;
+  String get _uid => AuthService.currentUserId ?? '';
+
+  DocumentReference<Map<String, dynamic>> get _basicHealthDoc =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('medical_id').doc('basic_health');
+
+  DocumentReference<Map<String, dynamic>> get _conditionsDoc =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('medical_id').doc('conditions');
+
+  CollectionReference<Map<String, dynamic>> get _caregiversRef =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('caregivers');
+
+  CollectionReference<Map<String, dynamic>> get _alertsRef =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('alerts');
 
   @override
   void initState() {
@@ -52,6 +74,15 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
         if (newSeconds != _seconds && newSeconds >= 0) {
           setState(() => _seconds = newSeconds);
           HapticFeedback.heavyImpact();
+        }
+      })..addStatusListener((status) {
+        if (status == AnimationStatus.completed && !_cancelled && !_alertWritten) {
+          _alertWritten = true;
+          _alertsRef.add({
+            'type': 'SOS_TRIGGERED',
+            'timestamp': FieldValue.serverTimestamp(),
+            'status': 'active',
+          });
         }
       });
     _countdownController.forward();
@@ -214,7 +245,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
     );
   }
 
-  // ── MEDICAL ID SNAPSHOT ──────────────────────────
+  // ── MEDICAL ID SNAPSHOT — Firestore ─────────────
   Widget _buildMedicalIdSnapshot() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,63 +254,79 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
             style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700,
                 color: _S.onPrimaryContainer, letterSpacing: 1.5)),
         const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _S.surfLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Blood Type
-              Text('BLOOD TYPE',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.0)),
-              const SizedBox(height: 4),
-              Text(user.bloodGroup,
-                  style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w700,
-                      color: _S.error)),
-              const SizedBox(height: 20),
+        FutureBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
+          future: Future.wait([_basicHealthDoc.get(), _conditionsDoc.get()]),
+          builder: (context, snap) {
+            final basicData = snap.data?[0].data();
+            final condData  = snap.data?[1].data();
+            final bloodType  = basicData?['blood_type'] as String? ?? '—';
+            final allergies  = (condData?['allergies']  as List?)?.cast<String>() ?? [];
+            final conditions = (condData?['conditions'] as List?)?.cast<String>() ?? [];
 
-              // Allergies
-              Text('ALLERGIES',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.0)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ['Penicillin', 'Latex'].map((a) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _S.surfContainerHigh,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(a,
-                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500,
-                          color: _S.primaryContainer)),
-                )).toList(),
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _S.surfLowest,
+                borderRadius: BorderRadius.circular(12),
+                border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
               ),
-              const SizedBox(height: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Blood Type
+                  Text('BLOOD TYPE',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.0)),
+                  const SizedBox(height: 4),
+                  Text(bloodType,
+                      style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w700,
+                          color: _S.error)),
+                  const SizedBox(height: 20),
 
-              // Chronic Conditions
-              Text('CHRONIC CONDITIONS',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.0)),
-              const SizedBox(height: 4),
-              Text('Type 2 Diabetes',
-                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600,
-                      color: _S.primaryContainer)),
-            ],
-          ),
+                  // Allergies
+                  Text('ALLERGIES',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.0)),
+                  const SizedBox(height: 8),
+                  allergies.isEmpty
+                      ? Text('None recorded',
+                          style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant))
+                      : Wrap(
+                          spacing: 8, runSpacing: 6,
+                          children: allergies.map((a) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _S.surfContainerHigh,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(a,
+                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500,
+                                    color: _S.primaryContainer)),
+                          )).toList(),
+                        ),
+                  const SizedBox(height: 20),
+
+                  // Chronic Conditions
+                  Text('CHRONIC CONDITIONS',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.0)),
+                  const SizedBox(height: 4),
+                  Text(
+                    conditions.isEmpty ? 'None recorded' : conditions.join(', '),
+                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600,
+                        color: _S.primaryContainer),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
-  // ── EMERGENCY CONTACTS ───────────────────────────
+  // ── EMERGENCY CONTACTS — Firestore StreamBuilder ─
   Widget _buildEmergencyContacts() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,27 +336,44 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
                 color: _S.onPrimaryContainer, letterSpacing: 1.5)),
         const SizedBox(height: 16),
 
-        // Contact 1 — Notified
-        _contactTile(
-          name: 'Priya Mehta',
-          subtitle: 'Primary Caregiver • Spouse',
-          statusLabel: 'NOTIFIED',
-          statusBg: _S.secondary.withOpacity(0.1),
-          statusText: _S.secondary,
-          trailingIcon: Icons.check_circle,
-          trailingColor: _S.secondary,
-        ),
-        const SizedBox(height: 12),
-
-        // Contact 2 — In Queue
-        _contactTile(
-          name: 'Rahul Sharma',
-          subtitle: 'Emergency • Brother',
-          statusLabel: 'IN QUEUE',
-          statusBg: _S.onSurfaceVariant.withOpacity(0.1),
-          statusText: _S.onSurfaceVariant,
-          trailingIcon: Icons.schedule,
-          trailingColor: _S.onSurfaceVariant.withOpacity(0.4),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _caregiversRef.orderBy('created_at').limit(3).snapshots(),
+          builder: (context, snapshot) {
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _S.surfContainerLow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('No emergency contacts added.',
+                    style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+              );
+            }
+            return Column(
+              children: List.generate(docs.length, (i) {
+                final data = docs[i].data();
+                final name = data['name'] as String? ?? 'Unknown';
+                final relation = data['relation'] as String? ?? '';
+                final isPrimary = i == 0;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: i < docs.length - 1 ? 12 : 0),
+                  child: _contactTile(
+                    name: name,
+                    subtitle: '${isPrimary ? 'Primary Caregiver' : 'Emergency'} • $relation',
+                    statusLabel: isPrimary ? 'NOTIFIED' : 'IN QUEUE',
+                    statusBg: isPrimary
+                        ? _S.secondary.withOpacity(0.1)
+                        : _S.onSurfaceVariant.withOpacity(0.1),
+                    statusText: isPrimary ? _S.secondary : _S.onSurfaceVariant,
+                    trailingIcon: isPrimary ? Icons.check_circle : Icons.schedule,
+                    trailingColor: isPrimary ? _S.secondary : _S.onSurfaceVariant.withOpacity(0.4),
+                  ),
+                );
+              }),
+            );
+          },
         ),
       ],
     );
@@ -332,14 +396,20 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
       ),
       child: Row(
         children: [
-          // Avatar
+          // Avatar with first-letter initial
           Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
               color: _S.surfContainerHighest,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person, color: _S.onSurfaceVariant, size: 24),
+            child: Center(
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
+                    color: _S.secondary),
+              ),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(

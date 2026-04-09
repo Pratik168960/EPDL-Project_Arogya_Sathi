@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../models/models.dart';
 import '../widgets/common_widgets.dart';
 import 'hardware_screen.dart';
 import 'emergency_sos_screen.dart';
@@ -10,9 +12,10 @@ import 'medical_id_basic_health_screen.dart';
 import 'analytics_screen.dart';
 import 'care_team_screen.dart';
 import 'pill_inventory_screen.dart';
+import 'seed_data_screen.dart';
 
 // ═══════════════════════════════════════════════
-//  Stitch Design Tokens (exact from HTML)
+//  Stitch Design Tokens
 // ═══════════════════════════════════════════════
 class _S {
   static const Color surface           = Color(0xFFF7FAFD);
@@ -32,10 +35,12 @@ class _S {
   static const Color errorContainer    = Color(0xFFFFDAD6);
   static const Color onErrorContainer  = Color(0xFF93000A);
   static const Color primaryFixed      = Color(0xFFD6E4F9);
+  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
-//  PROFILE & CAREGIVERS SCREEN
+//  PROFILE SCREEN
+//  Phase 4: Firebase Auth + Firestore Integration
 // ═══════════════════════════════════════════════
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -45,7 +50,27 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final UserProfile user = DummyData.user;
+
+  // ── Live Firebase Auth user ───────────────────
+  User? get _authUser => FirebaseAuth.instance.currentUser;
+
+  String get _uid => AuthService.currentUserId ?? '';
+
+  // ── Firestore references ─────────────────────
+  DocumentReference<Map<String, dynamic>> get _basicHealthDoc =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('medical_id').doc('basic_health');
+
+  DocumentReference<Map<String, dynamic>> get _conditionsDoc =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('medical_id').doc('conditions');
+
+  CollectionReference<Map<String, dynamic>> get _caregiversRef =>
+      FirebaseFirestore.instance
+          .collection('users').doc(_uid)
+          .collection('caregivers');
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +84,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
                 children: [
+                  // ── Profile Summary — from Firebase Auth ──
                   _buildProfileSummary(),
                   const SizedBox(height: 32),
+
+                  // ── Medical Identity — from Firestore ──────
                   _buildMedicalIdentity(),
                   const SizedBox(height: 32),
+
+                  // ── Caregivers — StreamBuilder ─────────────
                   _buildCaregivers(),
                   const SizedBox(height: 32),
+
+                  // ── Account Settings ───────────────────────
                   _buildAccountSettings(),
                 ],
               ),
@@ -111,8 +143,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── PROFILE SUMMARY ──────────────────────────────
+  // ── PROFILE SUMMARY — Firebase Auth ──────────────
   Widget _buildProfileSummary() {
+    final user = _authUser;
+    // Derive display name: prefer displayName, fall back to email prefix
+    final rawName = (user?.displayName?.isNotEmpty == true)
+        ? user!.displayName!
+        : (user?.email ?? 'User').split('@').first;
+    final displayName = rawName
+        .split(RegExp(r'[._\s]+'))
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+
+    // Initials from display name
+    final initials = displayName
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0].toUpperCase())
+        .join();
+
+    final email = user?.email ?? '';
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -128,8 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 2), blurRadius: 8)],
               ),
               child: Center(
-                child: Text(
-                  user.name.split(' ').map((w) => w[0]).take(2).join(),
+                child: Text(initials,
                   style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.w700, color: _S.primaryContainer),
                 ),
               ),
@@ -154,13 +205,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(user.name,
+              Text(displayName,
                   style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800,
                       color: _S.primaryContainer, letterSpacing: -0.5)),
               const SizedBox(height: 4),
-              Text('PATIENT ID: AS-9920-X12',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.2)),
+              Text(email,
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w500,
+                      color: _S.onSurfaceVariant)),
               const SizedBox(height: 16),
               // Edit Profile Button
               GestureDetector(
@@ -189,96 +240,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── MEDICAL IDENTITY ─────────────────────────────
+  // ── MEDICAL IDENTITY — Firestore FutureBuilders ──
   Widget _buildMedicalIdentity() {
     return Column(
       children: [
-        // Blood Group — with left blue border
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _S.surfLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('BLOOD GROUP',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
-              const SizedBox(height: 4),
-              Text(user.bloodGroup,
-                  style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800,
-                      color: _S.primaryContainer, letterSpacing: -0.5)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Allergies
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _S.surfLowest,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ALLERGIES',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                children: ['PENICILLIN', 'LATEX'].map((a) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _S.errorContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(a,
-                      style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700,
-                          color: _S.onErrorContainer)),
-                )).toList(),
+        // Blood Type card
+        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: _basicHealthDoc.get(),
+          builder: (context, snap) {
+            final bloodType = snap.data?.data()?['blood_type'] as String?;
+            final display = (bloodType != null && bloodType.isNotEmpty) ? bloodType : '—';
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _S.surfLowest,
+                borderRadius: BorderRadius.circular(12),
+                border: const Border(left: BorderSide(color: _S.secondary, width: 4)),
+                boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
               ),
-            ],
-          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('BLOOD GROUP',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+                  const SizedBox(height: 4),
+                  Text(display,
+                      style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800,
+                          color: _S.primaryContainer, letterSpacing: -0.5)),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
 
-        // Chronic Conditions
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _S.surfLowest,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('CHRONIC CONDITIONS',
-                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
-                      color: _S.onSurfaceVariant, letterSpacing: 1.5)),
-              const SizedBox(height: 6),
-              Text(user.conditions.join(', '),
-                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700,
-                      color: _S.primaryContainer, height: 1.3)),
-            ],
-          ),
+        // Allergies card
+        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: _conditionsDoc.get(),
+          builder: (context, snap) {
+            final data = snap.data?.data();
+            final allergies = (data?['allergies'] as List?)?.cast<String>() ?? [];
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _S.surfLowest,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ALLERGIES',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+                  const SizedBox(height: 10),
+                  allergies.isEmpty
+                      ? Text('None recorded',
+                          style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant))
+                      : Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: allergies.map((a) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _S.errorContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(a.toUpperCase(),
+                                style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700,
+                                    color: _S.onErrorContainer)),
+                          )).toList(),
+                        ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // Chronic Conditions card
+        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: _conditionsDoc.get(),
+          builder: (context, snap) {
+            final data = snap.data?.data();
+            final conditions = (data?['conditions'] as List?)?.cast<String>() ?? [];
+            final display = conditions.isEmpty ? 'None recorded' : conditions.join(', ');
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _S.surfLowest,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('CHRONIC CONDITIONS',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700,
+                          color: _S.onSurfaceVariant, letterSpacing: 1.5)),
+                  const SizedBox(height: 6),
+                  Text(display,
+                      style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700,
+                          color: _S.primaryContainer, height: 1.3)),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
-  // ── CAREGIVERS ────────────────────────────────────
+  // ── CAREGIVERS — StreamBuilder ────────────────────
   Widget _buildCaregivers() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,15 +377,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             GestureDetector(
-              onTap: () => _snack('Add caregiver'),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CareTeamScreen()));
+              },
               child: Row(
                 children: [
                   const Icon(Icons.add_circle_outline, size: 18, color: _S.secondary),
                   const SizedBox(width: 4),
-                  Text('Add\nCaregiver',
+                  Text('Manage',
                       textAlign: TextAlign.end,
                       style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700,
-                          color: _S.secondary, height: 1.2)),
+                          color: _S.secondary)),
                 ],
               ),
             ),
@@ -317,27 +396,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Primary Caregiver
-        _caregiverTile(
-          name: user.emergencyContactName,
-          relation: user.emergencyContactRelation,
-          badgeLabel: 'PRIMARY',
-          badgeBg: _S.secondaryContainer,
-          badgeText: _S.onSecondaryContainer,
-          avatarBg: _S.primaryFixed,
-          avatarIconColor: _S.primaryContainer,
-        ),
-        const SizedBox(height: 12),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _caregiversRef.orderBy('created_at').limit(3).snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: CircularProgressIndicator(strokeWidth: 2, color: _S.secondary),
+              ));
+            }
 
-        // Emergency Contact
-        _caregiverTile(
-          name: 'Rahul Sharma',
-          relation: 'Brother',
-          badgeLabel: 'EMERGENCY',
-          badgeBg: _S.errorContainer,
-          badgeText: _S.onErrorContainer,
-          avatarBg: _S.surfVariant,
-          avatarIconColor: _S.onSurfaceVariant,
+            final docs = snapshot.data?.docs ?? [];
+
+            if (docs.isEmpty) {
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CareTeamScreen())),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: _S.surfContainerLow,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _S.outlineVariant.withOpacity(0.3), width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.person_add_outlined, size: 32, color: _S.outlineVariant),
+                      const SizedBox(height: 10),
+                      Text('No caregivers added yet',
+                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
+                              color: _S.primaryContainer)),
+                      const SizedBox(height: 4),
+                      Text('Tap to add your care team',
+                          style: GoogleFonts.outfit(fontSize: 12, color: _S.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: List.generate(docs.length, (i) {
+                final data = docs[i].data();
+                final name = data['name'] as String? ?? 'Unknown';
+                final relation = data['relation'] as String? ?? '';
+                final isPrimary = i == 0;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: i < docs.length - 1 ? 12 : 0),
+                  child: _caregiverTile(
+                    name: name,
+                    relation: relation,
+                    badgeLabel: isPrimary ? 'PRIMARY' : 'CONTACT',
+                    badgeBg: isPrimary ? _S.secondaryContainer : _S.errorContainer,
+                    badgeText: isPrimary ? _S.onSecondaryContainer : _S.onErrorContainer,
+                    avatarBg: isPrimary ? _S.primaryFixed : _S.surfVariant,
+                    avatarIconColor: isPrimary ? _S.primaryContainer : _S.onSurfaceVariant,
+                  ),
+                );
+              }),
+            );
+          },
         ),
       ],
     );
@@ -360,14 +478,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          // Avatar
+          // Avatar with initial
           Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
               color: avatarBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.person, color: avatarIconColor, size: 24),
+            child: Center(
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: avatarIconColor),
+              ),
+            ),
           ),
           const SizedBox(width: 14),
           // Info
@@ -391,10 +514,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w700,
                               color: badgeText)),
                     ),
-                    const SizedBox(width: 8),
-                    Text(relation,
-                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500,
-                            color: _S.onSurfaceVariant)),
+                    if (relation.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(relation,
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500,
+                              color: _S.onSurfaceVariant)),
+                    ],
                   ],
                 ),
               ],
@@ -448,7 +573,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: Column(
             children: [
-              // Manage Hardware
               _settingsItem(
                 icon: Icons.devices_other_outlined,
                 label: 'Manage Hardware',
@@ -457,8 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const HardwareScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.inventory_2_outlined,
                 label: 'Pill Inventory',
@@ -467,15 +590,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const PillInventoryScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.notifications_outlined,
                 label: 'Notification Settings',
                 onTap: () => _snack('Notification settings'),
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.group_outlined,
                 label: 'My Care Team',
@@ -484,22 +605,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const CareTeamScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.security_outlined,
                 label: 'Privacy Policy',
                 onTap: () => _snack('Privacy Policy'),
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.help_outline,
                 label: 'Support & Help',
                 onTap: () => _snack('Support & Help'),
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.analytics_outlined,
                 label: 'Analytics',
@@ -508,8 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.emergency_outlined,
                 label: 'Emergency SOS',
@@ -518,8 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencySosScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
               _settingsItem(
                 icon: Icons.badge_outlined,
                 label: 'Medical ID Setup',
@@ -528,11 +644,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicalIdBasicHealthScreen()));
                 },
               ),
-              Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0),
-
+              _divider(),
+              _settingsItem(
+                icon: Icons.dataset_outlined,
+                label: 'Seed Demo Data',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SeedDataScreen()));
+                },
+              ),
+              _divider(),
               // Log Out
               InkWell(
-                onTap: () => _confirmLogout(),
+                onTap: _confirmLogout,
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -553,6 +677,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
+
+  Divider _divider() => Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0);
 
   Widget _settingsItem({
     required IconData icon,
@@ -579,7 +705,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── PRESERVED BACKEND ────────────────────────────
+  // ── LOGOUT DIALOG ─────────────────────────────────
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -589,11 +715,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Text('Sign out from all devices?',
             style: GoogleFonts.outfit(fontSize: 14, color: AppColors.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel', style: GoogleFonts.outfit(color: AppColors.textSecondary))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-            onPressed: () { Navigator.pop(ctx); _snack('Logged out successfully'); },
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await AuthService.logOut();
+            },
             child: Text('Logout', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
           ),
         ],

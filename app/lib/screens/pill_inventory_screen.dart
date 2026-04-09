@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens
@@ -28,6 +30,7 @@ class _S {
 
 // ═══════════════════════════════════════════════
 //  PILL INVENTORY / HARDWARE INVENTORY SCREEN
+//  Phase 2: Firebase Firestore Integration
 // ═══════════════════════════════════════════════
 class PillInventoryScreen extends StatefulWidget {
   const PillInventoryScreen({super.key});
@@ -38,6 +41,16 @@ class PillInventoryScreen extends StatefulWidget {
 
 class _PillInventoryScreenState extends State<PillInventoryScreen> {
   bool _warningDismissed = false;
+
+  // ── Firestore References ─────────────────────
+  static const int _maxSlots = 4;
+  static const String _slotLabels = 'ABCDEFGH';
+
+  CollectionReference<Map<String, dynamic>> get _inventoryRef =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(AuthService.currentUserId!)
+          .collection('inventory');
 
   @override
   Widget build(BuildContext context) {
@@ -55,15 +68,56 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionHeader(),
-                        const SizedBox(height: 20),
-                        _buildSlotGrid(),
-                        const SizedBox(height: 28),
-                        if (!_warningDismissed) ...[
-                          _buildWarningBanner(),
-                          const SizedBox(height: 28),
-                        ],
-                        _buildDispenserHealth(),
+                        // ── STREAM-DRIVEN CONTENT ──────────
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _inventoryRef.orderBy('slot_index').snapshots(),
+                          builder: (context, snapshot) {
+                            // Loading state
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return _buildLoadingState();
+                            }
+
+                            // Error state
+                            if (snapshot.hasError) {
+                              return _buildErrorState(snapshot.error.toString());
+                            }
+
+                            final docs = snapshot.data?.docs ?? [];
+
+                            // Derive dynamic data
+                            final int totalInstalled = docs.length;
+                            final lowStockSlots = <Map<String, dynamic>>[];
+
+                            for (final doc in docs) {
+                              final data = doc.data();
+                              final stock = (data['current_stock'] ?? 0) as num;
+                              final max = (data['max_capacity'] ?? 30) as num;
+                              final percent = max > 0 ? (stock / max * 100).round() : 0;
+                              if (percent <= 10) {
+                                lowStockSlots.add({
+                                  'name': data['medication_name'] ?? 'Unknown',
+                                  'slot_index': data['slot_index'] ?? 0,
+                                });
+                              }
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSectionHeader(totalInstalled),
+                                const SizedBox(height: 20),
+                                _buildSlotGrid(docs),
+                                const SizedBox(height: 28),
+                                // Dynamic warning banner
+                                if (!_warningDismissed && lowStockSlots.isNotEmpty) ...[
+                                  _buildWarningBanner(lowStockSlots),
+                                  const SizedBox(height: 28),
+                                ],
+                                _buildDispenserHealth(),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -75,6 +129,47 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
               left: 24, right: 24, bottom: 16,
               child: _buildRefillButton(),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── LOADING STATE ────────────────────────────────
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 32, height: 32,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: _S.secondary),
+            ),
+            const SizedBox(height: 16),
+            Text('Loading inventory...',
+                style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── ERROR STATE ──────────────────────────────────
+  Widget _buildErrorState(String error) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 36, color: _S.warning),
+            const SizedBox(height: 12),
+            Text('Failed to load inventory',
+                style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600,
+                    color: _S.primaryContainer)),
+            const SizedBox(height: 4),
+            Text(error, textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(fontSize: 11, color: _S.onSurfaceVariant)),
           ],
         ),
       ),
@@ -129,8 +224,8 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
     );
   }
 
-  // ── SECTION HEADER ───────────────────────────────
-  Widget _buildSectionHeader() {
+  // ── SECTION HEADER (dynamic count) ───────────────
+  Widget _buildSectionHeader(int totalInstalled) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -146,44 +241,61 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                 style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
           ],
         ),
-        Text('4 UNITS INSTALLED',
+        Text('${totalInstalled > 0 ? totalInstalled : _maxSlots} UNITS',
             style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700,
                 color: _S.secondary, letterSpacing: 0.5)),
       ],
     );
   }
 
-  // ── SLOT GRID ────────────────────────────────────
-  Widget _buildSlotGrid() {
+  // ── SLOT GRID (Firestore-driven) ─────────────────
+  Widget _buildSlotGrid(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    // Build a list of _maxSlots items — filled or empty
+    final List<Widget> slotWidgets = [];
+    for (int i = 0; i < _maxSlots; i++) {
+      final slotLabel = 'Slot ${_slotLabels[i]}';
+      // Find the doc with slot_index == i
+      final match = docs.where((d) => (d.data()['slot_index'] ?? -1) == i);
+
+      if (match.isNotEmpty) {
+        final data = match.first.data();
+        final name = (data['medication_name'] ?? 'Unknown') as String;
+        final stock = (data['current_stock'] ?? 0) as num;
+        final max = (data['max_capacity'] ?? 30) as num;
+        final percent = max > 0 ? (stock / max * 100).round() : 0;
+        final isLow = percent <= 10;
+
+        slotWidgets.add(
+          _slotCard(
+            slot: slotLabel,
+            name: name,
+            count: stock.toInt(),
+            percent: percent.clamp(0, 100),
+            accentColor: isLow ? _S.warning : _S.secondary,
+            isWarning: isLow,
+          ),
+        );
+      } else {
+        slotWidgets.add(_emptySlot(slotLabel));
+      }
+    }
+
+    // Layout in 2-column grid
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _slotCard(
-              slot: 'Slot A',
-              name: 'Metformin',
-              count: 24,
-              percent: 80,
-              accentColor: _S.secondary,
-              isWarning: false,
-            )),
+            Expanded(child: slotWidgets[0]),
             const SizedBox(width: 14),
-            Expanded(child: _slotCard(
-              slot: 'Slot B',
-              name: 'Atorvastatin',
-              count: 3,
-              percent: 10,
-              accentColor: _S.warning,
-              isWarning: true,
-            )),
+            Expanded(child: slotWidgets[1]),
           ],
         ),
         const SizedBox(height: 14),
         Row(
           children: [
-            Expanded(child: _emptySlot('Slot C')),
+            Expanded(child: slotWidgets[2]),
             const SizedBox(width: 14),
-            Expanded(child: _emptySlot('Slot D')),
+            Expanded(child: slotWidgets[3]),
           ],
         ),
       ],
@@ -276,7 +388,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: percent / 100,
+              widthFactor: (percent / 100).clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: accentColor,
@@ -329,8 +441,14 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
     );
   }
 
-  // ── WARNING BANNER ───────────────────────────────
-  Widget _buildWarningBanner() {
+  // ── WARNING BANNER (dynamic) ─────────────────────
+  Widget _buildWarningBanner(List<Map<String, dynamic>> lowStockSlots) {
+    // Build a human-readable summary
+    final names = lowStockSlots.map((s) {
+      final idx = (s['slot_index'] as int).clamp(0, _slotLabels.length - 1);
+      return 'Slot ${_slotLabels[idx]} (${s['name']})';
+    }).join(', ');
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -354,11 +472,11 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Slot B is running low.',
+                Text('$names running low.',
                     style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700,
                         color: _S.tertiaryFixed, letterSpacing: -0.2)),
                 const SizedBox(height: 4),
-                Text('Please refill before Thursday to avoid missed doses.',
+                Text('Please refill soon to avoid missed doses.',
                     style: GoogleFonts.outfit(fontSize: 12,
                         color: _S.tertiaryFixed.withOpacity(0.8), height: 1.3)),
               ],

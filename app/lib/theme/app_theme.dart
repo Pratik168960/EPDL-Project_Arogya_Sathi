@@ -86,8 +86,7 @@ class AppTheme {
         primary: AppColors.teal,
         secondary: AppColors.bluePrimary,
         error: AppColors.danger,
-        background: AppColors.background,
-        surface: AppColors.white,
+        surface: AppColors.background,
       ),
       scaffoldBackgroundColor: AppColors.background,
       fontFamily: GoogleFonts.outfit().fontFamily,
@@ -139,11 +138,11 @@ class AppTheme {
         ),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((s) =>
-            s.contains(MaterialState.selected) ? Colors.white : Colors.white),
-        trackColor: MaterialStateProperty.resolveWith((s) =>
-            s.contains(MaterialState.selected) ? AppColors.teal : AppColors.border),
-        trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? Colors.white : Colors.white),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? AppColors.teal : AppColors.border),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
