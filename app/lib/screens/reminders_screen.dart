@@ -82,8 +82,8 @@ class _RemindersScreenState extends State<RemindersScreen>
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.06),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        color: Colors.white.withValues(alpha: 0.06),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(kRadius),
                       ),
                       child: Row(children: [
@@ -244,7 +244,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                          NotificationService.cancelSpecificAlarm(med['alarm_id']);
                       }
                     },
-                    activeColor: Colors.white,
+                    activeThumbColor: Colors.white,
                     activeTrackColor: AppColors.teal,
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: AppColors.border,
@@ -311,9 +311,9 @@ class _RemindersScreenState extends State<RemindersScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
@@ -392,6 +392,7 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
       }
     } catch (e) {
       setState(() => _saving = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $e', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
         backgroundColor: AppColors.danger,
@@ -481,7 +482,7 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: _frequency,
+                initialValue: _frequency,
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Frequency',
@@ -493,7 +494,7 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: _meal,
+                initialValue: _meal,
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'When to take',
@@ -540,7 +541,7 @@ class _AdherenceRingPainter extends CustomPainter {
 
     canvas.drawCircle(
       Offset(cx, cy), r,
-      Paint()..color = Colors.white.withOpacity(0.1)..style = PaintingStyle.stroke..strokeWidth = 5,
+      Paint()..color = Colors.white.withValues(alpha: 0.1)..style = PaintingStyle.stroke..strokeWidth = 5,
     );
 
     canvas.drawArc(

@@ -122,7 +122,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 Icon(
                   isActive ? tab.activeIcon : tab.icon,
                   size: 26,
-                  color: isActive ? _N.secondary : _N.inactive.withOpacity(0.7),
+                  color: isActive ? _N.secondary : _N.inactive.withValues(alpha: 0.7),
                 ),
                 if (tab.badge != null)
                   Positioned(
@@ -151,7 +151,7 @@ class _MainNavigationState extends State<MainNavigation> {
               style: GoogleFonts.publicSans(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: isActive ? _N.secondary : _N.inactive.withOpacity(0.7),
+                color: isActive ? _N.secondary : _N.inactive.withValues(alpha: 0.7),
                 letterSpacing: 1.0,
               ),
             ),
@@ -172,3 +172,4 @@ class _NavTab {
   final int? badge;
   const _NavTab({required this.icon, required this.activeIcon, required this.label, this.badge});
 }
+

@@ -60,7 +60,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.bluetooth_connected, color: Colors.white, size: 24),
@@ -74,7 +74,7 @@ class _HardwareScreenState extends State<HardwareScreen> {
                           style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text('2 devices paired and ready', 
-                          style: GoogleFonts.outfit(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w500)),
+                          style: GoogleFonts.outfit(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
@@ -195,3 +195,4 @@ class _HardwareScreenState extends State<HardwareScreen> {
     );
   }
 }
+

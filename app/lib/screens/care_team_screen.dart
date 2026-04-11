@@ -146,7 +146,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.error_outline, size: 32, color: _S.error.withOpacity(0.6)),
+            Icon(Icons.error_outline, size: 32, color: _S.error.withValues(alpha: 0.6)),
             const SizedBox(height: 10),
             Text('Failed to load contacts',
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
@@ -168,7 +168,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       decoration: BoxDecoration(
         color: _S.surfContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _S.outlineVariant.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         children: [
@@ -248,7 +248,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         children: [
           // Left accent strip
           Positioned(left: 0, top: 0, bottom: 0,
-            child: Container(width: 4, color: _S.secondary.withOpacity(0.8))),
+            child: Container(width: 4, color: _S.secondary.withValues(alpha: 0.8))),
 
           Padding(
             padding: const EdgeInsets.all(24),
@@ -287,7 +287,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: _S.secondary.withOpacity(0.1),
+                              color: _S.secondary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -384,7 +384,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
           color: _S.surfContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _S.outlineVariant.withOpacity(0.3),
+            color: _S.outlineVariant.withValues(alpha: 0.3),
             width: 2,
             strokeAlign: BorderSide.strokeAlignInside,
           ),
@@ -490,7 +490,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         decoration: BoxDecoration(
           color: _S.secondary,
           borderRadius: BorderRadius.circular(10),
-          boxShadow: [BoxShadow(color: _S.secondary.withOpacity(0.15),
+          boxShadow: [BoxShadow(color: _S.secondary.withValues(alpha: 0.15),
               offset: const Offset(0, 8), blurRadius: 24)],
         ),
         child: Row(
@@ -525,15 +525,15 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     return Column(
       children: [
         // Top divider
-        Container(height: 2, color: _S.errorContainer.withOpacity(0.3)),
+        Container(height: 2, color: _S.errorContainer.withValues(alpha: 0.3)),
         const SizedBox(height: 32),
 
         Container(
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: _S.errorContainer.withOpacity(0.1),
+            color: _S.errorContainer.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _S.error.withOpacity(0.1)),
+            border: Border.all(color: _S.error.withValues(alpha: 0.1)),
           ),
           child: Column(
             children: [
@@ -640,3 +640,4 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     ));
   }
 }
+

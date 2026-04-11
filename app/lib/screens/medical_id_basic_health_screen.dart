@@ -151,7 +151,7 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
         child: Column(
           children: [
             _buildTopBar(),
-            Container(height: 1, color: _S.surfContainerHighest.withOpacity(0.5)),
+            Container(height: 1, color: _S.surfContainerHighest.withValues(alpha: 0.5)),
             Expanded(
               child: !_isLoaded
                   ? const Center(child: CircularProgressIndicator(
@@ -211,7 +211,7 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
               decoration: BoxDecoration(
                 color: _isSaving ? _S.surfContainerHigh : _S.primaryContainer,
                 borderRadius: BorderRadius.circular(6),
-                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
+                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withValues(alpha: 0.3),
                     offset: const Offset(0, 4), blurRadius: 12)],
               ),
               child: _isSaving
@@ -501,7 +501,7 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
         style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: _S.primaryContainer),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withOpacity(0.5)),
+          hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withValues(alpha: 0.5)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
           suffixText: suffix,
@@ -512,3 +512,4 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
     );
   }
 }
+

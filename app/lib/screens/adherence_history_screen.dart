@@ -92,7 +92,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                   style: GoogleFonts.publicSans(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.white.withOpacity(0.8) : const Color(0xFF44474C),
+                    color: isActive ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF44474C),
                     letterSpacing: 1.0,
                   ),
                 ),
@@ -360,7 +360,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
     final bool isError = statusColor == const Color(0xFFBA1A1A);
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F4F7).withOpacity(0.5),
+        color: const Color(0xFFF1F4F7).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: isError ? const Border(left: BorderSide(color: Color(0x4DBA1A1A), width: 4)) : null,
       ),
@@ -388,3 +388,4 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
     );
   }
 }
+

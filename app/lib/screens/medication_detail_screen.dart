@@ -105,7 +105,7 @@ class MedicationDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       'ACTIVE PRESCRIPTION',
-                      style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withOpacity(0.6), letterSpacing: 2.0),
+                      style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withValues(alpha: 0.6), letterSpacing: 2.0),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -177,7 +177,7 @@ class MedicationDetailScreen extends StatelessWidget {
                 Container(
                   height: 6,
                   width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(3)),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
                   child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: 0.6,
@@ -202,15 +202,15 @@ class MedicationDetailScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Daily Schedule', style: GoogleFonts.manrope(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF0F1C2C))),
-            Text('TODAY', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withOpacity(0.6), letterSpacing: 2.0)),
+            Text('TODAY', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withValues(alpha: 0.6), letterSpacing: 2.0)),
           ],
         ),
         const SizedBox(height: 16),
-        _buildScheduleItem('08:00', 'AM', 'Morning Dose', isTaken ? 'Taken at 07:55 AM' : 'Pending', isTaken ? Icons.check_circle : Icons.schedule, isTaken ? const Color(0xFF006399) : const Color(0xFF44474C).withOpacity(0.4), isTaken ? const Color(0xFFF1F4F7) : Colors.white, isTaken ? null : const Color(0xFF006399)),
+        _buildScheduleItem('08:00', 'AM', 'Morning Dose', isTaken ? 'Taken at 07:55 AM' : 'Pending', isTaken ? Icons.check_circle : Icons.schedule, isTaken ? const Color(0xFF006399) : const Color(0xFF44474C).withValues(alpha: 0.4), isTaken ? const Color(0xFFF1F4F7) : Colors.white, isTaken ? null : const Color(0xFF006399)),
         const SizedBox(height: 12),
-        _buildScheduleItem(timeRaw.split(' ')[0], timeRaw.contains(' ') ? timeRaw.split(' ')[1] : 'PM', 'Scheduled Dose', 'Pending dispense', Icons.schedule, const Color(0xFF44474C).withOpacity(0.4), Colors.white, const Color(0xFF006399).withOpacity(0.2)),
+        _buildScheduleItem(timeRaw.split(' ')[0], timeRaw.contains(' ') ? timeRaw.split(' ')[1] : 'PM', 'Scheduled Dose', 'Pending dispense', Icons.schedule, const Color(0xFF44474C).withValues(alpha: 0.4), Colors.white, const Color(0xFF006399).withValues(alpha: 0.2)),
         const SizedBox(height: 12),
-        _buildScheduleItem('19:00', 'PM', 'Evening Dose', 'Scheduled', Icons.calendar_today, const Color(0xFF44474C).withOpacity(0.4), const Color(0xFFF1F4F7), null),
+        _buildScheduleItem('19:00', 'PM', 'Evening Dose', 'Scheduled', Icons.calendar_today, const Color(0xFF44474C).withValues(alpha: 0.4), const Color(0xFFF1F4F7), null),
       ],
     );
   }
@@ -233,16 +233,16 @@ class MedicationDetailScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(time, style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
-                    Text(period, style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withOpacity(0.4))),
+                    Text(period, style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withValues(alpha: 0.4))),
                   ],
                 ),
               ),
-              Container(width: 1, height: 40, color: const Color(0xFFE0E3E6).withOpacity(0.5), margin: const EdgeInsets.symmetric(horizontal: 20)),
+              Container(width: 1, height: 40, color: const Color(0xFFE0E3E6).withValues(alpha: 0.5), margin: const EdgeInsets.symmetric(horizontal: 20)),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
-                  Text(subtitle, style: GoogleFonts.publicSans(fontSize: 12, fontWeight: FontWeight.w600, color: iconColor == const Color(0xFF006399) ? iconColor : const Color(0xFF44474C).withOpacity(0.6))),
+                  Text(subtitle, style: GoogleFonts.publicSans(fontSize: 12, fontWeight: FontWeight.w600, color: iconColor == const Color(0xFF006399) ? iconColor : const Color(0xFF44474C).withValues(alpha: 0.6))),
                 ],
               ),
             ],
@@ -278,7 +278,7 @@ class MedicationDetailScreen extends StatelessWidget {
                 children: [
                   Text('96%', style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C))),
                   const SizedBox(width: 4),
-                  Text('7-DAY AVG', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withOpacity(0.6), letterSpacing: 1.0)),
+                  Text('7-DAY AVG', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withValues(alpha: 0.6), letterSpacing: 1.0)),
                 ],
               ),
               const Expanded(child: SizedBox()),
@@ -290,7 +290,7 @@ class MedicationDetailScreen extends StatelessWidget {
                     width: 32,
                     height: 80 * heights[index],
                     decoration: BoxDecoration(
-                      color: isError[index] ? const Color(0xFFBA1A1A).withOpacity(0.6) : const Color(0xFF006399).withOpacity(0.8),
+                      color: isError[index] ? const Color(0xFFBA1A1A).withValues(alpha: 0.6) : const Color(0xFF006399).withValues(alpha: 0.8),
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                   );
@@ -341,9 +341,10 @@ class MedicationDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(title, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
           const SizedBox(height: 8),
-        Expanded(child: Text(desc, style: GoogleFonts.publicSans(fontSize: 12, color: const Color(0xFF44474C).withOpacity(0.7), height: 1.4))),
+        Expanded(child: Text(desc, style: GoogleFonts.publicSans(fontSize: 12, color: const Color(0xFF44474C).withValues(alpha: 0.7), height: 1.4))),
         ],
       ),
     );
   }
 }
+

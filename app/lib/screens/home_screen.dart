@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     HapticFeedback.heavyImpact();
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusLg)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -197,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           'PATIENT ID: AS-9942',
                           style: GoogleFonts.publicSans(
                             fontSize: 10, fontWeight: FontWeight.normal,
-                            letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withOpacity(0.7),
+                            letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.0),
+                      color: Colors.white.withValues(alpha: 0.0),
                     ),
                     child: const Icon(Icons.notifications_active, color: Color(0xFFF7FAFD), size: 24),
                   ),
@@ -285,13 +285,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Metformin 500mg • 1 Capsule',
                           style: GoogleFonts.publicSans(
-                            fontSize: 14, color: Colors.white.withOpacity(0.7),
+                            fontSize: 14, color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.4), size: 24),
+                  Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4), size: 24),
                 ],
               ),
             ),
@@ -449,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   unit,
                   style: GoogleFonts.manrope(
                     fontSize: 14, fontWeight: FontWeight.w500,
-                    color: const Color(0xFF0F1C2C).withOpacity(0.5),
+                    color: const Color(0xFF0F1C2C).withValues(alpha: 0.5),
                   ),
                 ),
               ]
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.fromLTRB(16, 20, 20, 20),
         decoration: BoxDecoration(
-          color: isTaken ? const Color(0xFFFFFFFF).withOpacity(0.6) : const Color(0xFFFFFFFF),
+          color: isTaken ? const Color(0xFFFFFFFF).withValues(alpha: 0.6) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
           border: isTaken ? null : const Border(left: BorderSide(color: Color(0xFF006399), width: 3)),
           boxShadow: const [BoxShadow(color: Color(0x080F1C2C), offset: Offset(0, 8), blurRadius: 24)],
@@ -847,7 +847,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: AppColors.white,
           borderRadius: BorderRadius.circular(kRadius),
           boxShadow: AppColors.cardShadow,
-          border: Border.all(color: AppColors.teal.withOpacity(0.12)),
+          border: Border.all(color: AppColors.teal.withValues(alpha: 0.12)),
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
@@ -887,14 +887,14 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: AppColors.navy,
             borderRadius: BorderRadius.circular(kRadius),
-            border: Border.all(color: AppColors.danger.withOpacity(0.25)),
+            border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(
               width: 7, height: 7,
               decoration: BoxDecoration(
                 color: AppColors.danger, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.danger.withOpacity(0.4), blurRadius: 6, spreadRadius: 1)],
+                boxShadow: [BoxShadow(color: AppColors.danger.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: 1)],
               ),
             ),
             const SizedBox(width: 10),
@@ -919,3 +919,4 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 }
+

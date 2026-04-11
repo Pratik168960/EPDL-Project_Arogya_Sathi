@@ -346,7 +346,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _S.warning.withOpacity(0.1),
+                    color: _S.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text('REFILL\nSOON',
@@ -422,13 +422,13 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
       decoration: BoxDecoration(
         color: _S.surfContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _S.outlineVariant.withOpacity(0.4), width: 2,
+        border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.4), width: 2,
             strokeAlign: BorderSide.strokeAlignInside),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.add_circle_outline, size: 28, color: _S.outline.withOpacity(0.6)),
+          Icon(Icons.add_circle_outline, size: 28, color: _S.outline.withValues(alpha: 0.6)),
           const SizedBox(height: 8),
           Text(slot.toUpperCase(),
               style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w700,
@@ -462,7 +462,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _S.warning.withOpacity(0.2),
+              color: _S.warning.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.warning_rounded, size: 28, color: _S.warning),
@@ -478,7 +478,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                 const SizedBox(height: 4),
                 Text('Please refill soon to avoid missed doses.',
                     style: GoogleFonts.outfit(fontSize: 12,
-                        color: _S.tertiaryFixed.withOpacity(0.8), height: 1.3)),
+                        color: _S.tertiaryFixed.withValues(alpha: 0.8), height: 1.3)),
               ],
             ),
           ),
@@ -542,11 +542,11 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.settings_remote, size: 40, color: _S.secondary.withOpacity(0.3)),
+                      Icon(Icons.settings_remote, size: 40, color: _S.secondary.withValues(alpha: 0.3)),
                       const SizedBox(height: 8),
                       Text('Smart Dispenser',
                           style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
-                              color: _S.onSurfaceVariant.withOpacity(0.5))),
+                              color: _S.onSurfaceVariant.withValues(alpha: 0.5))),
                     ],
                   ),
                 ),
@@ -558,7 +558,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, _S.surfContainerLow.withOpacity(0.4)],
+                        colors: [Colors.transparent, _S.surfContainerLow.withValues(alpha: 0.4)],
                       ),
                     ),
                   ),
@@ -605,7 +605,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
         decoration: BoxDecoration(
           color: _S.secondary,
           borderRadius: BorderRadius.circular(6),
-          boxShadow: [BoxShadow(color: _S.secondary.withOpacity(0.3),
+          boxShadow: [BoxShadow(color: _S.secondary.withValues(alpha: 0.3),
               offset: const Offset(0, 12), blurRadius: 32)],
         ),
         child: Row(
@@ -632,3 +632,4 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
     ));
   }
 }
+

@@ -51,9 +51,9 @@ class AlarmScreen extends StatelessWidget {
                   Container(
                     width: 72, height: 72,
                     decoration: BoxDecoration(
-                      color: AppColors.teal.withOpacity(0.15),
+                      color: AppColors.teal.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.teal.withOpacity(0.3), width: 1.5),
+                      border: Border.all(color: AppColors.teal.withValues(alpha: 0.3), width: 1.5),
                     ),
                     child: const Icon(Icons.medication_rounded, size: 36, color: AppColors.tealLight),
                   ),
@@ -233,3 +233,4 @@ class AlarmScreen extends StatelessWidget {
     ]);
   }
 }
+

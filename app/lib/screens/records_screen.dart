@@ -51,8 +51,8 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
         final uid = AuthService.currentUserId!;
 
         // 2. Prepare the Cloudinary API Request
-        final cloudName = 'dpfatzeoo';
-        final uploadPreset = 'arogya_records';
+        const cloudName = 'dpfatzeoo';
+        const uploadPreset = 'arogya_records';
         
         // Using 'auto' allows Cloudinary to handle both Images and PDFs automatically
         final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/auto/upload');
@@ -236,11 +236,10 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
                         // This opens the file in the phone's default browser or PDF viewer
                         await launchUrl(uri, mode: LaunchMode.externalApplication);
                       } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Could not open file'), backgroundColor: AppColors.danger)
-                          );
-                        }
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open file'), backgroundColor: AppColors.danger)
+                        );
                       }
                     }
                   },

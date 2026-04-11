@@ -196,7 +196,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
         child: Column(
           children: [
             _buildTopBar(),
-            Container(height: 1, color: _S.surfContainerHighest.withOpacity(0.5)),
+            Container(height: 1, color: _S.surfContainerHighest.withValues(alpha: 0.5)),
             Expanded(
               child: !_isLoaded
                   ? const Center(child: CircularProgressIndicator(
@@ -272,7 +272,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
               decoration: BoxDecoration(
                 color: _isSaving ? _S.surfContainerHigh : _S.primaryContainer,
                 borderRadius: BorderRadius.circular(6),
-                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withOpacity(0.3),
+                boxShadow: _isSaving ? null : [BoxShadow(color: _S.primaryContainer.withValues(alpha: 0.3),
                     offset: const Offset(0, 4), blurRadius: 12)],
               ),
               child: _isSaving
@@ -425,7 +425,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
                       fontFeatures: [const FontFeature.tabularFigures()]),
                   decoration: InputDecoration(
                     hintText: '+1 (555) 000-0000',
-                    hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withOpacity(0.5)),
+                    hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withValues(alpha: 0.5)),
                     prefixIcon: const Icon(Icons.call, size: 18, color: _S.onSurfaceVariant),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     border: InputBorder.none,
@@ -452,7 +452,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _S.secondary.withOpacity(0.1),
+              color: _S.secondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.lock_open, size: 22, color: _S.secondary),
@@ -512,7 +512,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
           Container(
             width: 56, height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.verified_user, size: 28, color: _S.secondary),
@@ -543,7 +543,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
         style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurface),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withOpacity(0.5)),
+          hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withValues(alpha: 0.5)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: InputBorder.none,
         ),
@@ -551,3 +551,4 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
     );
   }
 }
+

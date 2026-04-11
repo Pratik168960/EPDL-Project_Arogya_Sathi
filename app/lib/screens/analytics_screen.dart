@@ -348,7 +348,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             color: isActive ? _S.surfLowest : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isActive
-                ? [BoxShadow(color: _S.primaryContainer.withOpacity(0.06),
+                ? [BoxShadow(color: _S.primaryContainer.withValues(alpha: 0.06),
                     offset: const Offset(0, 2), blurRadius: 8)]
                 : null,
           ),
@@ -411,7 +411,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       message = percent > 0
           ? '⚠️ Your adherence is $percent%. Try to stay consistent.'
           : 'Start taking your medications to build a streak!';
-      bgColor = _S.warning.withOpacity(0.08);
+      bgColor = _S.warning.withValues(alpha: 0.08);
     }
 
     return Container(
@@ -419,7 +419,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: isGood ? null : Border.all(color: _S.warning.withOpacity(0.2)),
+        border: isGood ? null : Border.all(color: _S.warning.withValues(alpha: 0.2)),
       ),
       child: Text(message,
           textAlign: TextAlign.center,
@@ -717,10 +717,11 @@ class _SparklinePainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [color.withOpacity(0.15), color.withOpacity(0.0)],
+        colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

@@ -320,7 +320,7 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
             style: GoogleFonts.outfit(fontSize: 14, color: _S.primaryContainer),
             decoration: InputDecoration(
               hintText: 'Search conditions, allergens, or medications...',
-              hintStyle: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant.withOpacity(0.6)),
+              hintStyle: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant.withValues(alpha: 0.6)),
               prefixIcon: const Icon(Icons.search, color: _S.onSurfaceVariant, size: 22),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               border: InputBorder.none,
@@ -354,7 +354,7 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
                   color: isSelected ? _S.secondary : _S.surfLowest,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isSelected ? _S.secondary : _S.outlineVariant.withOpacity(0.2),
+                    color: isSelected ? _S.secondary : _S.outlineVariant.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Text(item,
@@ -409,7 +409,7 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
         color: _S.surfLowest,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 8), blurRadius: 32)],
-        border: Border.all(color: _S.outlineVariant.withOpacity(0.1)),
+        border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,7 +424,7 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _S.secondary.withOpacity(0.1),
+                  color: _S.secondary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text('$_totalSelected SELECTED',
@@ -572,3 +572,4 @@ class _MedicalIdConditionsScreenState extends State<MedicalIdConditionsScreen> {
     );
   }
 }
+

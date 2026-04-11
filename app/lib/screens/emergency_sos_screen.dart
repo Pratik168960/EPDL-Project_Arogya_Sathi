@@ -200,7 +200,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _S.error.withOpacity(0.3),
+                      color: _S.error.withValues(alpha: 0.3),
                       offset: const Offset(0, 12),
                       blurRadius: 48,
                     ),
@@ -214,7 +214,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
                             color: _S.onError)),
                     Text('SECONDS',
                         style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700,
-                            color: _S.onError.withOpacity(0.8), letterSpacing: 1.5)),
+                            color: _S.onError.withValues(alpha: 0.8), letterSpacing: 1.5)),
                   ],
                 ),
               ),
@@ -364,11 +364,11 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
                     subtitle: '${isPrimary ? 'Primary Caregiver' : 'Emergency'} • $relation',
                     statusLabel: isPrimary ? 'NOTIFIED' : 'IN QUEUE',
                     statusBg: isPrimary
-                        ? _S.secondary.withOpacity(0.1)
-                        : _S.onSurfaceVariant.withOpacity(0.1),
+                        ? _S.secondary.withValues(alpha: 0.1)
+                        : _S.onSurfaceVariant.withValues(alpha: 0.1),
                     statusText: isPrimary ? _S.secondary : _S.onSurfaceVariant,
                     trailingIcon: isPrimary ? Icons.check_circle : Icons.schedule,
-                    trailingColor: isPrimary ? _S.secondary : _S.onSurfaceVariant.withOpacity(0.4),
+                    trailingColor: isPrimary ? _S.secondary : _S.onSurfaceVariant.withValues(alpha: 0.4),
                   ),
                 );
               }),
@@ -471,7 +471,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
               color: _S.secondary,
               borderRadius: BorderRadius.circular(6),
               boxShadow: [
-                BoxShadow(color: _S.secondary.withOpacity(0.25), offset: const Offset(0, 8), blurRadius: 24),
+                BoxShadow(color: _S.secondary.withValues(alpha: 0.25), offset: const Offset(0, 8), blurRadius: 24),
               ],
             ),
             child: Row(
@@ -550,3 +550,4 @@ class _RingPainter extends CustomPainter {
   @override
   bool shouldRepaint(_RingPainter old) => old.progress != progress;
 }
+

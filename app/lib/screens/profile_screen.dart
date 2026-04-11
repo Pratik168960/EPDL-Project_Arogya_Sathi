@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/common_widgets.dart';
 import 'hardware_screen.dart';
 import 'emergency_sos_screen.dart';
 import 'medical_id_basic_health_screen.dart';
@@ -35,7 +34,6 @@ class _S {
   static const Color errorContainer    = Color(0xFFFFDAD6);
   static const Color onErrorContainer  = Color(0xFF93000A);
   static const Color primaryFixed      = Color(0xFFD6E4F9);
-  static const Color emerald           = Color(0xFF10B981);
 }
 
 // ═══════════════════════════════════════════════
@@ -417,11 +415,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: _S.surfContainerLow,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _S.outlineVariant.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.person_add_outlined, size: 32, color: _S.outlineVariant),
+                      const Icon(Icons.person_add_outlined, size: 32, color: _S.outlineVariant),
                       const SizedBox(height: 10),
                       Text('No caregivers added yet',
                           style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600,
@@ -549,7 +547,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: _S.surfLowest,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: _S.outlineVariant.withOpacity(0.2)),
+          border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.2)),
         ),
         child: Icon(icon, size: 20, color: _S.secondary),
       ),
@@ -678,7 +676,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Divider _divider() => Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0);
+  Divider _divider() => const Divider(height: 1, color: _S.surfContainer, indent: 0, endIndent: 0);
 
   Widget _settingsItem({
     required IconData icon,
