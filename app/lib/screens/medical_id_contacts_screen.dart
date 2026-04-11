@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,12 +12,10 @@ class _S {
   static const Color surfContainerLow  = Color(0xFFF1F4F7);
   static const Color surfContainerHigh = Color(0xFFE5E8EB);
   static const Color surfContainerHighest = Color(0xFFE0E3E6);
-  static const Color surfContainer     = Color(0xFFEBEEF1);
   static const Color surfLowest        = Color(0xFFFFFFFF);
   static const Color primaryContainer  = Color(0xFF0F1C2C);
   static const Color onPrimaryContainer = Color(0xFF778598);
   static const Color secondary         = Color(0xFF006399);
-  static const Color onSecondary       = Color(0xFFFFFFFF);
   static const Color onSurface         = Color(0xFF181C1E);
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outlineVariant    = Color(0xFFC4C6CC);
@@ -396,7 +393,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: relation,
+                  initialValue: relation,
                   style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurface),
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -480,7 +477,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
               HapticFeedback.selectionClick();
               setState(() => _showOnLockScreen = v);
             },
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: _S.secondary,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFF334155),

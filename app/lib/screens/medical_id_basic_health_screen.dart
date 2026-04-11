@@ -413,7 +413,7 @@ class _MedicalIdBasicHealthScreenState extends State<MedicalIdBasicHealthScreen>
                   HapticFeedback.selectionClick();
                   setState(() => _organDonor = v);
                 },
-                activeColor: Colors.white,
+                activeThumbColor: Colors.white,
                 activeTrackColor: _S.secondary,
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: _S.surfContainerHighest,

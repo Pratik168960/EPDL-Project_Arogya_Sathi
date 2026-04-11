@@ -11,14 +11,9 @@ class _S {
   static const Color surface           = Color(0xFFF7FAFD);
   static const Color surfContainerLow  = Color(0xFFF1F4F7);
   static const Color surfContainerHigh = Color(0xFFE5E8EB);
-  static const Color surfContainerHighest = Color(0xFFE0E3E6);
-  static const Color surfContainer     = Color(0xFFEBEEF1);
   static const Color surfLowest        = Color(0xFFFFFFFF);
   static const Color primaryContainer  = Color(0xFF0F1C2C);
-  static const Color onPrimaryContainer = Color(0xFF778598);
   static const Color secondary         = Color(0xFF006399);
-  static const Color onSecondary       = Color(0xFFFFFFFF);
-  static const Color onSurface         = Color(0xFF181C1E);
   static const Color onSurfaceVariant  = Color(0xFF44474C);
   static const Color outlineVariant    = Color(0xFFC4C6CC);
   static const Color outline           = Color(0xFF74777D);
@@ -355,7 +350,7 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
                           color: _S.warning, letterSpacing: 0.3, height: 1.2)),
                 )
               else
-                Icon(Icons.medication, size: 20, color: _S.secondary),
+                const Icon(Icons.medication, size: 20, color: _S.secondary),
             ],
           ),
           const SizedBox(height: 16),
