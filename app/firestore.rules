@@ -67,6 +67,27 @@ service cloud.firestore {
     }
 
     // ════════════════════════════════════════════════
+    //  /alarm_schedules/{docId} — Cross-User Alarm Timing
+    //  Doc ID format: {uid}_{alarmId}
+    //  Owner can read/write. All authenticated users can read
+    //  (for hardware/admin dashboard to query all alarms).
+    // ════════════════════════════════════════════════
+    match /alarm_schedules/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && resource == null
+          ? request.auth.uid == request.resource.data.uid
+          : request.auth.uid == resource.data.uid;
+    }
+
+    // ════════════════════════════════════════════════
+    //  /hardware_control/{deviceId} — ESP32 IoT Devices
+    //  Any authenticated user (app or device) can read/write.
+    // ════════════════════════════════════════════════
+    match /hardware_control/{deviceId} {
+      allow read, write: if isAuth();
+    }
+
+    // ════════════════════════════════════════════════
     //  DEFAULT: Deny everything else
     // ════════════════════════════════════════════════
     match /{document=**} {

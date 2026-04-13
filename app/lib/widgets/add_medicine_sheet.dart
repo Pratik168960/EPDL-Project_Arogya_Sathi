@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
+import '../services/alarm_schedule_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 
@@ -62,6 +63,16 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
             'alarm_id':  alarmId,
             'created_at': FieldValue.serverTimestamp(),
           });
+
+      // Sync to dedicated alarm_schedules collection
+      await AlarmScheduleService.saveAlarmSchedule(
+        medicineName: _nameCtrl.text.trim(),
+        dosage: _dosageCtrl.text.trim(),
+        frequency: _frequency,
+        mealTiming: _meal,
+        time: _time,
+        alarmId: alarmId,
+      );
 
       if (mounted) {
         Navigator.pop(context);

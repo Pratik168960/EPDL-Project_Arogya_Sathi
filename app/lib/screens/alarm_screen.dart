@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/notification_service.dart';
+import '../services/alarm_schedule_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
@@ -172,6 +173,15 @@ class AlarmScreen extends StatelessWidget {
                           debugPrint('History saved successfully!');
                         } catch (e) {
                           debugPrint('Error saving history: $e');
+                        }
+                        // *** 3b. ROTATE ALARM SCHEDULE — delete fired, create next ***
+                        try {
+                          if (payloadId != null) {
+                            await AlarmScheduleService.onAlarmFired(payloadId);
+                          }
+                          debugPrint('Alarm schedule rotated to next occurrence!');
+                        } catch (e) {
+                          debugPrint('Error rotating alarm schedule: $e');
                         }
                         
                         // *** 4. UPDATE DASHBOARD IS_TAKEN STATUS BY ALARM ID ***

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
+import '../services/alarm_schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/medication_detail_screen.dart';
@@ -506,6 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // *** NOTIFICATION CANCEL — PRESERVED ***
                   if (data.containsKey('alarm_id')) {
                     await NotificationService.cancelSpecificAlarm(data['alarm_id']);
+                    await AlarmScheduleService.deleteAlarm(data['alarm_id']);
                   }
                   // *** FIREBASE DELETE — PRESERVED ***
                   await FirebaseFirestore.instance
@@ -645,6 +647,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         
                       if (!val && data.containsKey('alarm_id')) {
                         NotificationService.cancelSpecificAlarm(data['alarm_id']);
+                        AlarmScheduleService.deactivateAlarm(data['alarm_id']);
+                      } else if (val && data.containsKey('alarm_id')) {
+                        AlarmScheduleService.activateAlarm(data['alarm_id']);
                       }
                     },
                   ),

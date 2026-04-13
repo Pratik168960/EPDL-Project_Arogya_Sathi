@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../services/notification_service.dart';
-import '../services/auth_service.dart'; // <-- ADDED THIS IMPORT
+import '../services/alarm_schedule_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -242,6 +243,9 @@ class _RemindersScreenState extends State<RemindersScreen>
                       // Cancel the alarm if toggled off!
                       if (val == false && med.containsKey('alarm_id')) {
                          NotificationService.cancelSpecificAlarm(med['alarm_id']);
+                         AlarmScheduleService.deactivateAlarm(med['alarm_id']);
+                      } else if (val == true && med.containsKey('alarm_id')) {
+                         AlarmScheduleService.activateAlarm(med['alarm_id']);
                       }
                     },
                     activeThumbColor: Colors.white,
@@ -378,6 +382,16 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
             'alarm_id':  alarmId,
             'created_at': FieldValue.serverTimestamp(),
           });
+
+      // Sync to dedicated alarm_schedules collection
+      await AlarmScheduleService.saveAlarmSchedule(
+        medicineName: _nameCtrl.text.trim(),
+        dosage: _dosageCtrl.text.trim(),
+        frequency: _frequency,
+        mealTiming: _meal,
+        time: _time,
+        alarmId: alarmId,
+      );
 
       if (mounted) {
         Navigator.pop(context);
