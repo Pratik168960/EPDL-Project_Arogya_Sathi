@@ -94,6 +94,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildCaregivers(),
                   const SizedBox(height: 32),
 
+                  // ── Share Code — for patient-caregiver linking ──
+                  _buildShareCode(),
+                  const SizedBox(height: 32),
+
                   // ── Account Settings ───────────────────────
                   _buildAccountSettings(),
                 ],
@@ -551,6 +555,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Icon(icon, size: 20, color: _S.secondary),
       ),
+    );
+  }
+
+  // ── SHARE CODE — for caregiver linking ─────────────
+  Widget _buildShareCode() {
+    return FutureBuilder<String?>(
+      future: AuthService.getShareCode(),
+      builder: (context, snapshot) {
+        // Don't show for caregivers
+        if (!snapshot.hasData && snapshot.connectionState == ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+
+        final code = snapshot.data ?? '------';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Share Code',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700,
+                    color: _S.primaryContainer)),
+            const SizedBox(height: 8),
+            Text('Give this code to your caregiver so they can link to your account.',
+                style: GoogleFonts.outfit(fontSize: 12, color: _S.onSurfaceVariant)),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+              decoration: BoxDecoration(
+                color: _S.surfLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _S.outlineVariant.withValues(alpha: 0.3)),
+                boxShadow: const [BoxShadow(color: Color(0x0A0F1C2C), offset: Offset(0, 4), blurRadius: 20)],
+              ),
+              child: Column(
+                children: [
+                  // The code display
+                  Text(code,
+                    style: GoogleFonts.outfit(
+                      fontSize: 36, fontWeight: FontWeight.w900,
+                      letterSpacing: 10, color: _S.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Copy button
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: code));
+                          _snack('Code copied!');
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        label: Text('Copy', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _S.secondary,
+                          side: BorderSide(color: _S.outlineVariant.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Regenerate button
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            await AuthService.regenerateShareCode();
+                            setState(() {}); // Rebuild to show new code
+                            _snack('New code generated!');
+                          } catch (e) {
+                            _snack('Error: $e');
+                          }
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text('New Code', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _S.outline,
+                          side: BorderSide(color: _S.outlineVariant.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

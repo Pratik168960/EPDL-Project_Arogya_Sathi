@@ -3,6 +3,9 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation.dart';
+import 'screens/role_selection_screen.dart';
+import 'screens/caregiver_navigation.dart';
+import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -60,16 +63,61 @@ class ArogyasathiApp extends StatelessWidget {
         builder: (context, snapshot) {
           // If Firebase is checking...
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(backgroundColor: AppColors.navy, body: Center(child: CircularProgressIndicator(color: AppColors.teal)));
+            return const Scaffold(
+              backgroundColor: AppColors.navy,
+              body: Center(child: CircularProgressIndicator(color: AppColors.teal)),
+            );
           }
-          // If user is logged in → Master Hub
+          // If user is logged in → check role
           if (snapshot.hasData) {
-            return const MainNavigation();
+            return const _RoleRouter();
           }
           // Otherwise → Login
           return const LoginScreen();
         },
       ),
+    );
+  }
+}
+
+/// ═══════════════════════════════════════════════
+///  ROLE ROUTER
+///  Reads the user's role from Firestore and routes:
+///    - No role → RoleSelectionScreen (first login)
+///    - "patient" → MainNavigation (existing patient UI)
+///    - "caregiver" → CaregiverNavigation (new caregiver UI)
+/// ═══════════════════════════════════════════════
+class _RoleRouter extends StatelessWidget {
+  const _RoleRouter();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: AuthService.getUserRole(),
+      builder: (context, snapshot) {
+        // Loading...
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: AppColors.navy,
+            body: Center(child: CircularProgressIndicator(color: AppColors.teal)),
+          );
+        }
+
+        final role = snapshot.data;
+
+        // No role set → first login → pick role
+        if (role == null) {
+          return const RoleSelectionScreen();
+        }
+
+        // Route based on role
+        if (role == 'caregiver') {
+          return const CaregiverNavigation();
+        }
+
+        // Default: patient
+        return const MainNavigation();
+      },
     );
   }
 }

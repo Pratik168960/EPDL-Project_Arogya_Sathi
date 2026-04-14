@@ -2,8 +2,13 @@ rules_version = '2';
 
 // ═══════════════════════════════════════════════════════════
 //  ArogyaSathi — Firestore Security Rules
-//  Every user can ONLY read/write their own data.
-//  No cross-user access. No unauthenticated access.
+//  v2: Supports Patient/Caregiver roles with cross-user access
+//
+//  Rules:
+//    - Users can read/write their own data
+//    - Caregivers can read/write linked patient's medications
+//    - Caregivers can read linked patient's history and alerts
+//    - Share-code lookup requires auth (read-only on users collection)
 // ═══════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -19,20 +24,33 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
+    // ── Helper: Is the current user a linked caregiver for this patient? ──
+    function isLinkedCaregiver(patientId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/users/$(patientId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/users/$(patientId)).data.linked_caregivers;
+    }
+
     // ════════════════════════════════════════════════
     //  /users/{userId} — User Profile Root
+    //  Owner: full access
+    //  Other authenticated users: read-only (for share-code lookup)
     // ════════════════════════════════════════════════
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
 
       // ── Medications (reminders) ─────────────────
+      // Owner OR linked caregiver can read/write
       match /medications/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) || isLinkedCaregiver(userId);
       }
 
       // ── Medication History (adherence logs) ─────
+      // Owner: read/write. Caregiver: read only
       match /history/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow write: if isOwner(userId);
       }
 
       // ── Pill Inventory ──────────────────────────
@@ -46,8 +64,10 @@ service cloud.firestore {
       }
 
       // ── SOS Alerts ─────────────────────────────
+      // Owner: read/write. Caregiver: read only
       match /alerts/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow write: if isOwner(userId);
       }
 
       // ── Appointments ───────────────────────────
