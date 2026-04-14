@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../services/notification_service.dart';
+import '../services/fcm_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _waterCount = 5;
   final int _waterGoal = 8;
 
+  Timer? _missedDoseTimer;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +46,19 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
+
+    // Check for missed doses now and every 5 minutes
+    FCMService.checkMissedDoses();
+    _missedDoseTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => FCMService.checkMissedDoses(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _missedDoseTimer?.cancel();
+    super.dispose();
   }
 
   String get _greeting {

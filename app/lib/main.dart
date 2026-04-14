@@ -6,7 +6,9 @@ import 'screens/main_navigation.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/caregiver_navigation.dart';
 import 'services/auth_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +17,9 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set background message handler BEFORE Firebase.initializeApp
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -29,6 +34,8 @@ void main() async {
   );
 
   await NotificationService.initialize();
+  await FCMService.initialize();
+  FCMService.listenToDispenserStatus();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
