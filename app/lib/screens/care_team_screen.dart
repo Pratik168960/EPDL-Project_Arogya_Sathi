@@ -635,7 +635,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
   void _showShareCodeSheet() async {
     String? code = await AuthService.getShareCode();
     if (code == null) {
-      code = await AuthService.generateNewShareCode();
+      code = await AuthService.regenerateShareCode();
     }
     
     if (!mounted) return;
@@ -732,4 +732,5 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       margin: const EdgeInsets.all(16),
     ));
   }
+}
 

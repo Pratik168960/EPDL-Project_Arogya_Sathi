@@ -21,6 +21,7 @@ class _S {
   static const Color surface           = Color(0xFFF7FAFD);
   static const Color surfContainerLow  = Color(0xFFF1F4F7);
   static const Color surfContainerHigh = Color(0xFFE5E8EB);
+  static const Color surfContainerHighest = Color(0xFFE0E3E6);
   static const Color surfContainer     = Color(0xFFEBEEF1);
   static const Color surfVariant       = Color(0xFFE0E3E6);
   static const Color surfLowest        = Color(0xFFFFFFFF);
@@ -77,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 labelText: 'Display Name',
                 labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
                 filled: true,
-                fillColor: _S.surfaceContainerHighest,
+                fillColor: _S.surfContainerHighest,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               ),
             ),

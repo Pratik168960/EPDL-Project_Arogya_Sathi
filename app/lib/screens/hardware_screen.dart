@@ -35,8 +35,10 @@ class _HardwareScreenState extends State<HardwareScreen> {
         'dispense_slot': 1,
         'action_time': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      if (!mounted) return;
       _snack('Instant dispense command sent to hardware! ⚙️');
     } catch (e) {
+      if (!mounted) return;
       _snack('Failed to send command: $e', isError: true);
     }
   }

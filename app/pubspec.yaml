@@ -33,7 +33,7 @@ dependencies:
   # File Handling / Health Locker
   file_picker: ^8.0.7
   path_provider: ^2.1.2
-  open_file: ^3.3.2
+  open_filex: ^4.5.0
 
   # Charts
   fl_chart: ^0.66.2

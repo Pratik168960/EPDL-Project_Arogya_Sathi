@@ -184,45 +184,53 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40, height: 40,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFFE0E3E6),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.network(
-                        "https://lh3.googleusercontent.com/aida-public/AB6AXuDbTNIq-ipFd7SYWHS-LgQfO9xSx2O3OL4SQKdEMN6MSQx3qLTSnVU5Vyi64zHUVtWNqdTCaFRpMoiYHrGEvE42O1kNr-JPWzyvVYq9_zNW93HnQMgyhXpYzFR7HfhgrzXMdgLD8WTw-UgmJwvFr8FDKdhcvOauMQtLn_Reep8iEcxC5GIlaMtzxe5ul4Cus9TdQT76m60IFWMskQy7TzOfiryhYgkOeQFVbhtlNk0xkEbIbaQhoyIg_ubHxHMe4bYzHObv-b-wEw",
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.blueGrey),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _displayName,
-                          style: GoogleFonts.manrope(
-                            fontSize: 18, fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5, color: const Color(0xFFF7FAFD),
-                            height: 1,
-                          ),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    if (widget.onNavigateToProfile != null) {
+                      widget.onNavigateToProfile!();
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFFE0E3E6),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'PATIENT ID: AS-9942',
-                          style: GoogleFonts.publicSans(
-                            fontSize: 10, fontWeight: FontWeight.normal,
-                            letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withValues(alpha: 0.7),
-                          ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.network(
+                          "https://lh3.googleusercontent.com/aida-public/AB6AXuDbTNIq-ipFd7SYWHS-LgQfO9xSx2O3OL4SQKdEMN6MSQx3qLTSnVU5Vyi64zHUVtWNqdTCaFRpMoiYHrGEvE42O1kNr-JPWzyvVYq9_zNW93HnQMgyhXpYzFR7HfhgrzXMdgLD8WTw-UgmJwvFr8FDKdhcvOauMQtLn_Reep8iEcxC5GIlaMtzxe5ul4Cus9TdQT76m60IFWMskQy7TzOfiryhYgkOeQFVbhtlNk0xkEbIbaQhoyIg_ubHxHMe4bYzHObv-b-wEw",
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.blueGrey),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _displayName,
+                            style: GoogleFonts.manrope(
+                              fontSize: 18, fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5, color: const Color(0xFFF7FAFD),
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'PATIENT ID: AS-9942',
+                            style: GoogleFonts.publicSans(
+                              fontSize: 10, fontWeight: FontWeight.normal,
+                              letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 GestureDetector(
                   onTap: () => _showRecentNotifications(),
@@ -336,34 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       _quickActionButton(Icons.note_add, 'ADD RECORD', const Color(0xFF006399), widget.onNavigateToRecords ?? () {}),
                       _quickActionButton(Icons.medication, 'MEDICINES', const Color(0xFF006399), widget.onNavigateToReminders ?? () {}),
                       _quickActionButton(Icons.emergency, 'EMERGENCY', const Color(0xFFBA1A1A), _showSOSDialog),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  // Health Summary Header
-                  Text(
-                    'HEALTH SUMMARY',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14, fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F1C2C), letterSpacing: 2.8,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Health Summary Grid
-                  Row(
-                    children: [
-                      Expanded(child: _healthBox('MEDS TODAY', '3/4', ' Taken', true)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _healthBox('HEART RATE', '72', ' bpm', false)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: _healthBox('BLOOD PRESSURE', '120/80', '', false)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _healthBox('SPO2', '98', '%', false)),
                     ],
                   ),
                   const SizedBox(height: 40),

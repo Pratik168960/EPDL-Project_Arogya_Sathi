@@ -90,6 +90,7 @@ class MedicationDetailScreen extends StatelessWidget {
   }
 
   Widget _buildHeroCards(String name, String dosage, String indication) {
+    final int amountRemaining = data['amount_remaining'] ?? 0;
     return LayoutBuilder(builder: (context, constraints) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

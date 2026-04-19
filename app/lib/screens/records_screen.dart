@@ -164,7 +164,7 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
         if (logs.isEmpty) return Center(child: Text('No history yet.', style: GoogleFonts.outfit(color: AppColors.textMuted)));
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           itemCount: logs.length,
           itemBuilder: (context, index) {
             final log = logs[index].data() as Map<String, dynamic>;
@@ -203,7 +203,7 @@ class _RecordsScreenState extends State<RecordsScreen> with SingleTickerProvider
   // ── LOCKER TAB ──
   Widget _buildLockerTab() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
         Text('Your Uploaded Records', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),

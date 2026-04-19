@@ -31,6 +31,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  DateTime? _lastPressedAt;
 
   void _goTo(int index) {
     HapticFeedback.selectionClick();
@@ -47,7 +48,32 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        
+        if (_currentIndex != 0) {
+          _goTo(0);
+          return;
+        }
+        
+        final now = DateTime.now();
+        if (_lastPressedAt == null || now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
+          _lastPressedAt = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Press back again to exit', style: GoogleFonts.outfit()),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
       extendBody: true,
       body: Stack(
         children: [
@@ -69,7 +95,7 @@ class _MainNavigationState extends State<MainNavigation> {
           _buildBottomNav(),
         ],
       ),
-    );
+    ));
   }
 
   // ═══════════════════════════════════════════════
