@@ -315,8 +315,8 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                           const SizedBox(height: 8),
                           // Edit
                           GestureDetector(
-                            onTap: () => _snack('Edit contact: $name'),
-                            child: Text('Edit Contact',
+                            onTap: () => _showContactOptions(docId, name, phone),
+                            child: Text('Options',
                                 style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600,
                                     color: _S.secondary, decoration: TextDecoration.underline)),
                           ),
@@ -375,7 +375,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        _snack('Add new caregiver');
+        _showShareCodeSheet();
       },
       child: Container(
         width: double.infinity,
@@ -482,7 +482,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        _snack('Add new caregiver');
+        _showShareCodeSheet();
       },
       child: Container(
         width: double.infinity,
@@ -630,6 +630,99 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     }
   }
 
+  // ── Modals / Bottom Sheets ───────────────────────
+  
+  void _showShareCodeSheet() async {
+    String? code = await AuthService.getShareCode();
+    if (code == null) {
+      code = await AuthService.generateNewShareCode();
+    }
+    
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.qr_code_2, size: 48, color: _S.secondary),
+            const SizedBox(height: 16),
+            Text('Invite Caregiver', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+            const SizedBox(height: 8),
+            Text('Share this code with your caregiver. They can use it to link to your account.', textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant)),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: _S.surfContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _S.secondary, width: 2),
+              ),
+              child: Text(code ?? 'ERROR', style: GoogleFonts.jetBrainsMono(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 8, color: _S.secondary)),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: _S.secondary, padding: const EdgeInsets.symmetric(vertical: 16)),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: code ?? ''));
+                  Navigator.pop(ctx);
+                  _snack('Code copied!');
+                },
+                icon: const Icon(Icons.copy),
+                label: Text('Copy Code', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showContactOptions(String docId, String name, String phone) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Expanded(child: Text('Options for $name', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: _S.primaryContainer))),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.person_remove, color: _S.error),
+            title: Text('Remove Caregiver', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: _S.error)),
+            subtitle: Text('They will no longer receive alerts or see your data', style: GoogleFonts.outfit(fontSize: 12, color: _S.onSurfaceVariant)),
+            onTap: () async {
+              try {
+                await _caregiversRef.doc(docId).delete();
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _snack('$name removed');
+                }
+              } catch (e) {
+                if (mounted) _snack('Error removing: $e');
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      )
+    );
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
@@ -639,5 +732,4 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       margin: const EdgeInsets.all(16),
     ));
   }
-}
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
+import 'package:intl/intl.dart';
 
 class AdherenceHistoryScreen extends StatefulWidget {
   const AdherenceHistoryScreen({super.key});
@@ -9,10 +12,14 @@ class AdherenceHistoryScreen extends StatefulWidget {
 }
 
 class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
-  final int activeDayIndex = 3; // Thursday 24
+  final int activeDayIndex = 3;
 
   @override
   Widget build(BuildContext context) {
+    if (AuthService.currentUserId == null) {
+      return const Scaffold(body: Center(child: Text("Not logged in")));
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
       body: SafeArea(
@@ -20,21 +27,66 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
           children: [
             _buildAppBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildDateSelector(),
-                    const SizedBox(height: 32),
-                    _buildMonthlySummary(),
-                    const SizedBox(height: 40),
-                    _buildDetailedChart(),
-                    const SizedBox(height: 40),
-                    _buildHistoryLog(),
-                    const SizedBox(height: 100), // Nav bar padding
-                  ],
-                ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(AuthService.currentUserId)
+                    .collection('history')
+                    .orderBy('taken_at', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snapshot.data?.docs ?? [];
+
+                  // Calculate stats
+                  int total = docs.length;
+                  int taken = docs.where((doc) {
+                    final status = (doc.data() as Map<String, dynamic>)['status']?.toString() ?? '';
+                    return status == 'Taken' || status == 'dispensed';
+                  }).length;
+                  
+                  int adherence = total > 0 ? ((taken / total) * 100).round() : 100;
+                  
+                  // Group by Date for History Log
+                  Map<String, List<Map<String, dynamic>>> groupedHistory = {};
+                  for (var doc in docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final ts = data['taken_at'] as Timestamp?;
+                    if (ts == null) continue;
+                    
+                    final date = ts.toDate();
+                    final dateKey = DateFormat('MMM dd, EEEE').format(date);
+                    
+                    if (!groupedHistory.containsKey(dateKey)) {
+                      groupedHistory[dateKey] = [];
+                    }
+                    groupedHistory[dateKey]!.add({
+                      'name': data['name'] ?? 'Unknown',
+                      'desc': 'Scheduled',
+                      'time': DateFormat('hh:mm a').format(date),
+                      'status': data['status'] ?? 'Unknown',
+                      'color': (data['status'] == 'Taken' || data['status'] == 'dispensed') ? const Color(0xFF006399) : const Color(0xFFBA1A1A),
+                    });
+                  }
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildMonthlySummary(adherence, taken),
+                        const SizedBox(height: 40),
+                        _buildDetailedChart(adherence),
+                        const SizedBox(height: 40),
+                        _buildHistoryLog(groupedHistory),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -62,57 +114,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
     );
   }
 
-  Widget _buildDateSelector() {
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final dates = [21, 22, 23, 24, 25, 26, 27];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(7, (index) {
-          final isActive = index == activeDayIndex;
-          return Container(
-            margin: const EdgeInsets.only(right: 12),
-            width: 56,
-            height: 72,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFF0F1C2C) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: isActive ? const Border(left: BorderSide(color: Color(0xFF006399), width: 2)) : const Border(left: BorderSide(color: Color(0x33006399), width: 2)),
-              boxShadow: [
-                if (!isActive) const BoxShadow(color: Color(0x050F1C2C), offset: Offset(0, 4), blurRadius: 12),
-                if (isActive) const BoxShadow(color: Color(0x1A0F1C2C), offset: Offset(0, 8), blurRadius: 16),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  days[index],
-                  style: GoogleFonts.publicSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF44474C),
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                Text(
-                  dates[index].toString(),
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.white : const Color(0xFF0F1C2C),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildMonthlySummary() {
+  Widget _buildMonthlySummary(int adherence, int streak) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -129,24 +131,10 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('October Summary', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
+                  Text('${DateFormat('MMMM').format(DateTime.now())} Summary', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
                   const SizedBox(height: 4),
                   Text('Clinical performance overview', style: GoogleFonts.publicSans(fontSize: 14, color: const Color(0xFF44474C))),
                 ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0x1A006399),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.workspace_premium, color: Color(0xFF006399), size: 16),
-                    const SizedBox(width: 4),
-                    Text('PRO MODE', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF006399), letterSpacing: 1.0)),
-                  ],
-                ),
               ),
             ],
           ),
@@ -171,7 +159,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text('94', style: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C), height: 1.0)),
+                          Text('$adherence', style: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C), height: 1.0)),
                           const SizedBox(width: 4),
                           Text('%', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF006399))),
                         ],
@@ -193,15 +181,15 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ACTIVE STREAK', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C), letterSpacing: 1.5)),
+                      Text('TOTAL TAKEN', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C), letterSpacing: 1.5)),
                       const SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text('12', style: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C), height: 1.0)),
+                          Text('$streak', style: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C), height: 1.0)),
                           const SizedBox(width: 4),
-                          Text('Days', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF44474C))),
+                          Text('Doses', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF44474C))),
                         ],
                       ),
                     ],
@@ -215,8 +203,14 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
     );
   }
 
-  Widget _buildDetailedChart() {
-    final heights = [0.6, 0.75, 0.4, 0.9, 0.95, 1.0, 0.5, 0.85, 0.9, 1.0, 0.95, 0.3, 0.88, 0.92, 1.0, 1.0, 0.94, 0.98, 0.2, 1.0, 1.0];
+  Widget _buildDetailedChart(int adherence) {
+    // Generate dynamic chart data based on adherence!
+    final double baseHeight = adherence / 100.0;
+    final heights = List.generate(21, (index) {
+      if (baseHeight == 0) return 0.2;
+      return baseHeight * (0.8 + (index % 3) * 0.1); 
+    });
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -224,7 +218,6 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('30-Day Velocity', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
-            Text('VIEW REPORT', style: GoogleFonts.publicSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF006399), letterSpacing: 1.0)),
           ],
         ),
         const SizedBox(height: 16),
@@ -244,7 +237,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
               final isLow = heights[index] < 0.6;
               return Container(
                 width: 8,
-                height: 140 * heights[index],
+                height: 140 * heights[index].clamp(0.0, 1.0),
                 decoration: BoxDecoration(
                   color: isLast ? const Color(0xFF0F1C2C) : (isLow ? const Color(0x33006399) : const Color(0xFF006399)),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
@@ -253,32 +246,52 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
             }),
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('OCT 04', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C))),
-            Text('TODAY', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C))),
-          ],
-        )
       ],
     );
   }
 
-  Widget _buildHistoryLog() {
+  Widget _buildHistoryLog(Map<String, List<Map<String, dynamic>>> groupedHistory) {
+    if (groupedHistory.isEmpty) {
+      return Text('No medication records found.', style: GoogleFonts.manrope(fontSize: 16, color: const Color(0xFF44474C)));
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Daily Records', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
         const SizedBox(height: 16),
-        _buildActiveRecordEntry('Oct 24, Thursday', '3/3 Doses Taken', true, [
-          {'name': 'Metformin', 'desc': '500mg • Morning', 'time': '08:05 AM', 'color': const Color(0xFFE0C1A0)},
-          {'name': 'Atorvastatin', 'desc': '20mg • Evening', 'time': '08:45 PM', 'color': const Color(0xFF006399)},
-        ]),
-        const SizedBox(height: 12),
-        _buildCollapsedEntry('Oct 23, Wednesday', '2/3 Doses Taken', const Color(0xFFBA1A1A)),
-        const SizedBox(height: 12),
-        _buildCollapsedEntry('Oct 22, Tuesday', '3/3 Doses Taken', const Color(0xFF006399)),
+        ...groupedHistory.entries.map((entry) {
+          final dateStr = entry.key;
+          final meds = entry.value;
+          final takenCount = meds.where((m) => m['status'] == 'Taken' || m['status'] == 'dispensed').length;
+          final statusString = '$takenCount/${meds.length} Doses Taken';
+          
+          final isPerfect = takenCount == meds.length;
+          final isMissed = takenCount == 0 && meds.isNotEmpty;
+          
+          if (isMissed) {
+             return Column(
+               children: [
+                 _buildCollapsedEntry(dateStr, statusString, const Color(0xFFBA1A1A)),
+                 const SizedBox(height: 12),
+               ],
+             );
+          } else if (isPerfect) {
+             return Column(
+               children: [
+                 _buildActiveRecordEntry(dateStr, statusString, true, meds),
+                 const SizedBox(height: 12),
+               ],
+             );
+          } else {
+             return Column(
+               children: [
+                 _buildActiveRecordEntry(dateStr, statusString, true, meds),
+                 const SizedBox(height: 12),
+               ],
+             );
+          }
+        }),
       ],
     );
   }
@@ -332,7 +345,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(med['name'], style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
+                              Text(med['name'].toString().toUpperCase(), style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F1C2C))),
                               Text(med['desc'], style: GoogleFonts.publicSans(fontSize: 10, color: const Color(0xFF44474C))),
                             ],
                           ),
@@ -341,7 +354,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('TAKEN', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF006399), letterSpacing: 1.5)),
+                          Text((med['status'].toString().toUpperCase() == 'DISPENSED' ? 'TAKEN' : med['status'].toString().toUpperCase()), style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: med['color'], letterSpacing: 1.5)),
                           Text(med['time'], style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF0F1C2C))),
                         ],
                       ),
@@ -388,4 +401,3 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
     );
   }
 }
-

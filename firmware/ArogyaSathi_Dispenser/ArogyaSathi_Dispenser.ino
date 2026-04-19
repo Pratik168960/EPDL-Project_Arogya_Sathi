@@ -10,8 +10,8 @@
  *  │ Stepper 28BYJ-48       │ 25,26, │ Rotate pill carousel    │
  *  │ (ULN2003 driver)       │ 32,33  │ to correct slot         │
  *  │ Servo SG90             │ 13     │ Open/close dispense gate│
- *  │ IR Break-Beam Sensor   │ 4      │ Confirm pill dropped    │
- *  │ OLED SSD1306 128x64    │ 21,22  │ Status display (I2C)    │
+ *  │ IR Sensor Module       │ 4      │ Confirm pill dropped    │
+ *  │ 16x2 LCD I2C (HD44780) │ 21,22  │ Status display (I2C)    │
  *  │ Buzzer                 │ 12     │ Audio alerts            │
  *  │ LED Green              │ 14     │ Status: OK / Dispensed  │
  *  │ LED Red                │ 27     │ Status: Alert / Error   │
@@ -32,8 +32,7 @@
  *  LIBRARIES (Arduino Library Manager):
  *    - "Firebase Arduino Client Library for ESP8266 and ESP32" by Mobizt
  *    - "ESP32Servo" by Kevin Harrington
- *    - "Adafruit SSD1306" by Adafruit
- *    - "Adafruit GFX Library" by Adafruit
+ *    - "LiquidCrystal_I2C" by Frank de Brabander
  *    - "NTPClient" by Fabrice Weinberg
  *    - "Stepper" (built-in)
  *  
@@ -46,8 +45,7 @@
 #include <ESP32Servo.h>
 #include <Stepper.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <LiquidCrystal_I2C.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
@@ -59,7 +57,7 @@
 // ═══════════════════════════════════════════════
 #define WIFI_SSID            "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD        "YOUR_WIFI_PASSWORD"
-#define API_KEY              "YOUR_FIREBASE_API_KEY"
+#define API_KEY              "AIzaSyApz7xUm9Pc4MAVDtxWqUZY9E-aZoZA0HI"
 #define FIREBASE_PROJECT_ID  "arogyasathi-7f2c1"
 #define USER_EMAIL           "esp32@arogyasathi.local"
 #define USER_PASSWORD        "esp32SecurePassword123"
@@ -81,14 +79,13 @@
 #define GATE_CLOSED   0
 #define GATE_OPEN     90
 
-// IR Break-Beam Sensor
-#define IR_SENSOR_PIN 4       // LOW when beam is broken (pill detected)
+// IR Sensor Module (obstacle avoidance)
+#define IR_SENSOR_PIN 4       // LOW when object detected (pill passing)
 
-// OLED Display (I2C)
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1
-#define OLED_ADDR     0x3C
+// LCD Display (I2C — 16x2 HD44780 with PCF8574 backpack)
+#define LCD_ADDR      0x27    // Try 0x3F if 0x27 doesn't work
+#define LCD_COLS      16
+#define LCD_ROWS      2
 
 // Audio & Visual
 #define BUZZER_PIN    12
@@ -115,7 +112,7 @@ FirebaseConfig config;
 Stepper        carousel(STEPS_PER_REV, STEPPER_IN1, STEPPER_IN3, STEPPER_IN2, STEPPER_IN4);
 Servo          gateServo;
 
-Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+LiquidCrystal_I2C lcd(LCD_ADDR, LCD_COLS, LCD_ROWS);
 
 WiFiUDP        ntpUDP;
 NTPClient      timeClient(ntpUDP, "pool.ntp.org", 19800, 60000);  // IST = UTC+5:30
@@ -143,7 +140,7 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
-  pinMode(IR_SENSOR_PIN, INPUT_PULLUP);  // HIGH = beam intact, LOW = broken
+  pinMode(IR_SENSOR_PIN, INPUT);  // IR obstacle sensor has built-in pull-up
   digitalWrite(BUZZER_PIN, LOW);
   digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_RED, HIGH);  // Red until fully booted
@@ -155,27 +152,26 @@ void setup() {
   gateServo.attach(SERVO_PIN);
   gateServo.write(GATE_CLOSED);
 
-  // ── OLED Setup ──
+  // ── LCD Setup ──
   Wire.begin(21, 22);
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    Serial.println("⚠️  OLED not found!");
-  }
-  displayBoot("Booting...", "Connecting WiFi");
+  lcd.init();
+  lcd.backlight();
+  lcdShow("Booting...", "Connecting WiFi");
 
   // ── WiFi ──
   connectWiFi();
-  displayBoot("WiFi OK", "Syncing time...");
+  lcdShow("WiFi OK", "Syncing time...");
 
   // ── NTP Time ──
   timeClient.begin();
   timeClient.update();
   Serial.print("  IST: ");
   Serial.println(timeClient.getFormattedTime());
-  displayBoot("Time synced", timeClient.getFormattedTime().c_str());
+  lcdShow("Time synced", timeClient.getFormattedTime().c_str());
   delay(1000);
 
   // ── Firebase ──
-  displayBoot("Authenticating", "Firebase...");
+  lcdShow("Authenticating", "Firebase...");
   config.api_key = API_KEY;
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
@@ -605,132 +601,74 @@ void updateStatus(String status, String message) {
 }
 
 // ═══════════════════════════════════════════════
-//  OLED DISPLAY FUNCTIONS
+//  LCD DISPLAY FUNCTIONS (16x2 Text)
 // ═══════════════════════════════════════════════
 
-void displayBoot(const char* line1, const char* line2) {
-  oled.clearDisplay();
-  oled.setTextColor(SSD1306_WHITE);
-
-  oled.setTextSize(1);
-  oled.setCursor(10, 2);
-  oled.println("ArogyaSathi v2.0");
-  oled.drawLine(0, 12, 128, 12, SSD1306_WHITE);
-
-  oled.setTextSize(1);
-  oled.setCursor(0, 22);
-  oled.println(line1);
-  oled.setCursor(0, 38);
-  oled.println(line2);
-  oled.display();
+void lcdShow(const char* line1, const char* line2) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  
+  // Truncate to 16 chars safely
+  String l1 = String(line1);
+  if (l1.length() > 16) l1 = l1.substring(0, 16);
+  lcd.print(l1);
+  
+  lcd.setCursor(0, 1);
+  String l2 = String(line2);
+  if (l2.length() > 16) l2 = l2.substring(0, 16);
+  lcd.print(l2);
 }
 
 void displayIdle() {
-  oled.clearDisplay();
-  oled.setTextColor(SSD1306_WHITE);
-
-  // Header
-  oled.setTextSize(1);
-  oled.setCursor(5, 0);
-  oled.println("ArogyaSathi");
-  oled.drawLine(0, 10, 128, 10, SSD1306_WHITE);
-
-  // Time
-  oled.setTextSize(2);
-  oled.setCursor(15, 16);
-  oled.println(timeClient.getFormattedTime().substring(0, 5));
-
-  // Status
-  oled.setTextSize(1);
-  oled.setCursor(0, 38);
-  oled.print("Slot: "); oled.println(currentSlot);
-  oled.setCursor(0, 48);
-  oled.print("Done: "); oled.print(totalDispenses);
-  oled.print("  Miss: "); oled.println(totalMissed);
-
-  // Bottom bar
-  oled.drawLine(0, 57, 128, 57, SSD1306_WHITE);
-  oled.setCursor(5, 59);
-  oled.println("Waiting for alarm...");
-
-  oled.display();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ArogyaSathi ");
+  lcd.print(timeClient.getFormattedTime().substring(0, 5));
+  
+  lcd.setCursor(0, 1);
+  lcd.print("Slot:");
+  lcd.print(currentSlot);
+  lcd.print(" D:");
+  lcd.print(totalDispenses);
+  lcd.print(" M:");
+  lcd.print(totalMissed);
 }
 
 void displayDispensing(const char* medicine, const char* phase) {
-  oled.clearDisplay();
-  oled.setTextColor(SSD1306_WHITE);
-
-  oled.setTextSize(1);
-  oled.setCursor(5, 0);
-  oled.println("-- DISPENSING --");
-  oled.drawLine(0, 10, 128, 10, SSD1306_WHITE);
-
-  oled.setTextSize(2);
-  oled.setCursor(0, 16);
-  // Truncate medicine name if too long for display
+  lcd.clear();
+  lcd.setCursor(0, 0);
   String name = String(medicine);
-  if (name.length() > 10) name = name.substring(0, 10);
-  oled.println(name);
-
-  oled.setTextSize(1);
-  oled.setCursor(0, 40);
-  oled.println(phase);
-
-  // Progress bar placeholder
-  oled.drawRect(14, 55, 100, 6, SSD1306_WHITE);
-  oled.display();
+  if (name.length() > 16) name = name.substring(0, 16);
+  lcd.print(name);
+  
+  lcd.setCursor(0, 1);
+  String p = String(phase);
+  if (p.length() > 16) p = p.substring(0, 16);
+  lcd.print(p);
 }
 
 void displaySuccess(const char* medicine) {
-  oled.clearDisplay();
-  oled.setTextColor(SSD1306_WHITE);
-
-  oled.setTextSize(2);
-  oled.setCursor(15, 5);
-  oled.println("DONE!");
-
-  oled.setTextSize(1);
-  oled.setCursor(0, 30);
-  oled.print("Dispensed: ");
-  oled.println(medicine);
-
-  oled.setCursor(0, 45);
-  oled.println("IR Confirmed: YES");
-
-  oled.setCursor(0, 57);
-  oled.print(timeClient.getFormattedTime());
-  oled.display();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("SUCCESS!");
+  lcd.setCursor(0, 1);
+  String name = String(medicine);
+  if (name.length() > 16) name = name.substring(0, 16);
+  lcd.print(name);
 }
 
 void displayFailed(const char* medicine) {
-  oled.clearDisplay();
-  oled.setTextColor(SSD1306_WHITE);
-
-  oled.setTextSize(2);
-  oled.setCursor(10, 5);
-  oled.println("FAILED!");
-
-  oled.setTextSize(1);
-  oled.setCursor(0, 30);
-  oled.println(medicine);
-  oled.setCursor(0, 42);
-  oled.println("No pill detected!");
-  oled.setCursor(0, 54);
-  oled.println("Alert sent to app");
-  oled.display();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("FAILED!");
+  lcd.setCursor(0, 1);
+  String name = String(medicine);
+  if (name.length() > 16) name = name.substring(0, 16);
+  lcd.print(name);
 }
 
 void displayError(const char* title, const char* msg) {
-  oled.clearDisplay();
-  oled.setTextSize(2);
-  oled.setCursor(0, 5);
-  oled.println("ERROR");
-  oled.setTextSize(1);
-  oled.setCursor(0, 30);
-  oled.println(title);
-  oled.setCursor(0, 42);
-  oled.println(msg);
-  oled.display();
+  lcdShow(title, msg);
 }
 
 // ═══════════════════════════════════════════════

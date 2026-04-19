@@ -6,23 +6,22 @@
  *    1. Buzzer        (GPIO 12)
  *    2. LEDs          (Green: GPIO 14, Red: GPIO 27)
  *    3. Servo motor   (GPIO 13)
- *    4. OLED Display  (I2C: SDA=21, SCL=22) — SSD1306 128x64
+ *    4. LCD Display   (I2C: SDA=21, SCL=22) — 16x2 HD44780
+ *    5. IR Sensor     (GPIO 4) — Obstacle avoidance module
  *  
  *  No WiFi or Firebase needed — pure hardware validation.
  *  
  *  LIBRARIES NEEDED (install via Arduino Library Manager):
  *    - "ESP32Servo" by Kevin Harrington
- *    - "Adafruit SSD1306" by Adafruit
- *    - "Adafruit GFX Library" by Adafruit
+ *    - "LiquidCrystal_I2C" by Frank de Brabander
  *  
- *  BOARD: ESP32 Dev Module
+ *  BOARD: DOIT ESP32 DevKit V1
  *  UPLOAD SPEED: 115200
  * ═══════════════════════════════════════════════════════════
  */
 
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <LiquidCrystal_I2C.h>
 #include <ESP32Servo.h>
 
 // ── Pin Definitions ──
@@ -30,14 +29,15 @@
 #define LED_GREEN     14
 #define LED_RED       27
 #define SERVO_PIN     13
+#define IR_SENSOR_PIN 4       // LOW when object detected
 
-// ── OLED Config ──
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1      // No reset pin
-#define OLED_ADDR     0x3C    // Common I2C address (try 0x3D if this doesn't work)
+// ── LCD Config ──
+// Try 0x27 first — if blank, use 0x3F
+#define LCD_ADDR      0x27
+#define LCD_COLS      16
+#define LCD_ROWS      2
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+LiquidCrystal_I2C lcd(LCD_ADDR, LCD_COLS, LCD_ROWS);
 Servo testServo;
 
 int testStep = 0;
@@ -59,6 +59,7 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
+  pinMode(IR_SENSOR_PIN, INPUT);
   digitalWrite(BUZZER_PIN, LOW);
   digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_RED, LOW);
@@ -67,40 +68,45 @@ void setup() {
   testServo.attach(SERVO_PIN);
   testServo.write(0);
 
-  // Setup OLED
+  // Setup LCD
   Wire.begin(21, 22);  // SDA=21, SCL=22 (default ESP32 I2C)
-  
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    Serial.println("⚠️  OLED not found at 0x3C — trying 0x3D...");
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
-      Serial.println("❌ OLED not found! Check wiring (SDA→21, SCL→22)");
-      Serial.println("   Continuing without display...\n");
-    } else {
-      Serial.println("✓ OLED found at 0x3D!\n");
-    }
-  } else {
-    Serial.println("✓ OLED found at 0x3C!\n");
-  }
+  lcd.init();
+  lcd.backlight();
 
-  // Show startup screen
-  showOnDisplay("ArogyaSathi", "Hardware Test", "Starting...");
+  // Show startup
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("ArogyaSathi");
+  lcd.setCursor(1, 1);
+  lcd.print("Hardware Test");
+  Serial.println("✓ LCD initialized!\n");
   delay(2000);
 
   // ── RUN ALL TESTS ──
   Serial.println("Starting hardware tests in 2 seconds...\n");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Starting tests");
+  lcd.setCursor(0, 1);
+  lcd.print("in 2 seconds...");
   delay(2000);
 
   test1_Buzzer();
   test2_LEDs();
   test3_Servo();
   test4_Display();
-  test5_AllTogether();
+  test5_IRSensor();
+  test6_AllTogether();
 
   Serial.println("\n══════════════════════════════════════");
   Serial.println("  ALL TESTS COMPLETE!");
   Serial.println("══════════════════════════════════════\n");
 
-  showOnDisplay("ALL TESTS", "PASSED!", "Ready to go");
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("ALL TESTS PASS");
+  lcd.setCursor(2, 1);
+  lcd.print("Ready to go!");
 }
 
 // ═══════════════════════════════════════════════
@@ -108,7 +114,11 @@ void setup() {
 // ═══════════════════════════════════════════════
 void test1_Buzzer() {
   Serial.println("━━━ TEST 1: BUZZER (GPIO 12) ━━━");
-  showOnDisplay("TEST 1", "BUZZER", "GPIO 12");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("TEST 1: BUZZER");
+  lcd.setCursor(0, 1);
+  lcd.print("GPIO 12");
 
   // Short beep
   Serial.println("  → Short beep...");
@@ -133,6 +143,8 @@ void test1_Buzzer() {
 
   // Pattern: SOS
   Serial.println("  → SOS pattern (... --- ...)...");
+  lcd.setCursor(0, 1);
+  lcd.print("SOS Pattern   ");
   // S: 3 short
   for (int i = 0; i < 3; i++) {
     digitalWrite(BUZZER_PIN, HIGH); delay(100);
@@ -151,6 +163,8 @@ void test1_Buzzer() {
     digitalWrite(BUZZER_PIN, LOW);  delay(100);
   }
 
+  lcd.setCursor(0, 1);
+  lcd.print("PASS!         ");
   Serial.println("  ✓ Buzzer test complete!\n");
   delay(1000);
 }
@@ -160,9 +174,13 @@ void test1_Buzzer() {
 // ═══════════════════════════════════════════════
 void test2_LEDs() {
   Serial.println("━━━ TEST 2: LEDs (Green=14, Red=27) ━━━");
-  showOnDisplay("TEST 2", "LEDs", "Green=14 Red=27");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("TEST 2: LEDs");
 
   // Green ON
+  lcd.setCursor(0, 1);
+  lcd.print("Green ON      ");
   Serial.println("  → Green LED ON...");
   digitalWrite(LED_GREEN, HIGH);
   delay(1500);
@@ -170,6 +188,8 @@ void test2_LEDs() {
   delay(500);
 
   // Red ON
+  lcd.setCursor(0, 1);
+  lcd.print("Red ON        ");
   Serial.println("  → Red LED ON...");
   digitalWrite(LED_RED, HIGH);
   delay(1500);
@@ -177,6 +197,8 @@ void test2_LEDs() {
   delay(500);
 
   // Both ON
+  lcd.setCursor(0, 1);
+  lcd.print("Both ON       ");
   Serial.println("  → Both LEDs ON...");
   digitalWrite(LED_GREEN, HIGH);
   digitalWrite(LED_RED, HIGH);
@@ -186,6 +208,8 @@ void test2_LEDs() {
   delay(500);
 
   // Alternating blink
+  lcd.setCursor(0, 1);
+  lcd.print("Blinking...   ");
   Serial.println("  → Alternating blink (5x)...");
   for (int i = 0; i < 5; i++) {
     digitalWrite(LED_GREEN, HIGH);
@@ -197,6 +221,8 @@ void test2_LEDs() {
   }
   digitalWrite(LED_RED, LOW);
 
+  lcd.setCursor(0, 1);
+  lcd.print("PASS!         ");
   Serial.println("  ✓ LED test complete!\n");
   delay(1000);
 }
@@ -206,129 +232,160 @@ void test2_LEDs() {
 // ═══════════════════════════════════════════════
 void test3_Servo() {
   Serial.println("━━━ TEST 3: SERVO (GPIO 13) ━━━");
-  showOnDisplay("TEST 3", "SERVO", "GPIO 13");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("TEST 3: SERVO");
 
-  // Sweep 0 → 90 → 180 → 0
-  Serial.println("  → Moving to 0°...");
-  testServo.write(0);
-  delay(1000);
+  // Sweep positions
+  int positions[] = {0, 45, 90, 135, 180, 0};
+  const char* labels[] = {"0 deg  ", "45 deg ", "90 deg ", "135 deg", "180 deg", "0 (home)"};
 
-  Serial.println("  → Moving to 45°...");
-  testServo.write(45);
-  delay(1000);
+  for (int i = 0; i < 6; i++) {
+    lcd.setCursor(0, 1);
+    lcd.print(labels[i]);
+    lcd.print("         ");
+    Serial.print("  → Moving to "); Serial.print(positions[i]); Serial.println("°...");
+    testServo.write(positions[i]);
+    delay(1000);
+  }
 
-  Serial.println("  → Moving to 90° (dispense position)...");
-  testServo.write(90);
-  delay(1500);
-
-  Serial.println("  → Moving to 135°...");
-  testServo.write(135);
-  delay(1000);
-
-  Serial.println("  → Moving to 180°...");
-  testServo.write(180);
-  delay(1000);
-
-  Serial.println("  → Returning to 0° (closed)...");
-  testServo.write(0);
-  delay(1000);
-
-  // Simulate dispense cycle
-  Serial.println("  → Simulating dispense (open→wait→close)...");
+  // Simulate dispense
+  lcd.setCursor(0, 1);
+  lcd.print("Dispense sim  ");
+  Serial.println("  → Simulating dispense...");
   testServo.write(90);
   delay(2000);
   testServo.write(0);
   delay(500);
 
+  lcd.setCursor(0, 1);
+  lcd.print("PASS!         ");
   Serial.println("  ✓ Servo test complete!\n");
   delay(1000);
 }
 
 // ═══════════════════════════════════════════════
-//  TEST 4: OLED DISPLAY
+//  TEST 4: LCD DISPLAY
 // ═══════════════════════════════════════════════
 void test4_Display() {
-  Serial.println("━━━ TEST 4: OLED DISPLAY (I2C) ━━━");
+  Serial.println("━━━ TEST 4: LCD DISPLAY (I2C) ━━━");
 
-  // Screen 1: Large text
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(10, 5);
-  display.println("Arogya");
-  display.setCursor(20, 28);
-  display.println("Sathi");
-  display.setTextSize(1);
-  display.setCursor(15, 52);
-  display.println("Medicine Buddy");
-  display.display();
+  // Screen 1: App name
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("ArogyaSathi");
+  lcd.setCursor(1, 1);
+  lcd.print("Medicine Buddy");
   Serial.println("  → Screen 1: App name");
   delay(2000);
 
-  // Screen 2: Medicine info
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.println("---- NEXT ALARM ----");
-  display.println();
-  display.setTextSize(2);
-  display.setCursor(15, 16);
-  display.println("8:00 AM");
-  display.setTextSize(1);
-  display.setCursor(0, 40);
-  display.println("Medicine: Metformin");
-  display.setCursor(0, 52);
-  display.println("Dosage:   500mg");
-  display.display();
+  // Screen 2: Alarm info
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("NEXT: 8:00 AM");
+  lcd.setCursor(0, 1);
+  lcd.print("Metformin 500mg");
   Serial.println("  → Screen 2: Alarm info");
-  delay(3000);
+  delay(2000);
 
-  // Screen 3: Dispensing animation
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(5, 8);
-  display.println("DISPENSING");
-  display.setTextSize(1);
-  display.setCursor(20, 35);
-  display.println("Metformin 500mg");
-  display.display();
-  delay(500);
-
-  // Progress bar animation
-  for (int i = 0; i <= 100; i += 5) {
-    display.fillRect(14, 50, (int)(i * 1.0), 8, SSD1306_WHITE);
-    display.drawRect(14, 50, 100, 8, SSD1306_WHITE);
-    display.display();
-    delay(80);
-  }
-  Serial.println("  → Screen 3: Dispensing animation");
+  // Screen 3: Dispensing
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("DISPENSING...");
+  lcd.setCursor(0, 1);
+  lcd.print("Metformin 500mg");
+  Serial.println("  → Screen 3: Dispensing");
   delay(1000);
 
+  // Progress bar animation on LCD
+  lcd.setCursor(0, 1);
+  for (int i = 0; i < 16; i++) {
+    lcd.write(0xFF);  // Full block character
+    delay(100);
+  }
+  Serial.println("  → Screen 3: Progress bar");
+  delay(500);
+
   // Screen 4: Done
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(30, 10);
-  display.println("DONE!");
-  display.setTextSize(1);
-  display.setCursor(10, 38);
-  display.println("Medicine dispensed");
-  display.setCursor(15, 52);
-  display.println("Take with food");
-  display.display();
+  lcd.clear();
+  lcd.setCursor(4, 0);
+  lcd.print("DONE!");
+  lcd.setCursor(0, 1);
+  lcd.print("Take with food");
   Serial.println("  → Screen 4: Complete");
   delay(2000);
 
+  lcd.setCursor(0, 1);
+  lcd.print("PASS!         ");
   Serial.println("  ✓ Display test complete!\n");
+  delay(1000);
 }
 
 // ═══════════════════════════════════════════════
-//  TEST 5: ALL TOGETHER — Full Dispense Cycle
+//  TEST 5: IR SENSOR
 // ═══════════════════════════════════════════════
-void test5_AllTogether() {
-  Serial.println("━━━ TEST 5: FULL DISPENSE SIMULATION ━━━");
+void test5_IRSensor() {
+  Serial.println("━━━ TEST 5: IR SENSOR (GPIO 4) ━━━");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("TEST 5: IR SENSR");
+  lcd.setCursor(0, 1);
+  lcd.print("Wave hand close!");
+
+  Serial.println("  → Wave your hand in front of the IR sensor...");
+  Serial.println("    Monitoring for 10 seconds...");
+
+  int detected = 0;
+  unsigned long start = millis();
+
+  while (millis() - start < 10000) {
+    if (digitalRead(IR_SENSOR_PIN) == LOW) {
+      detected++;
+      Serial.print("    ✓ Object detected! (count: ");
+      Serial.print(detected);
+      Serial.println(")");
+
+      lcd.setCursor(0, 1);
+      lcd.print("Detected! #");
+      lcd.print(detected);
+      lcd.print("    ");
+
+      // Wait for object to pass
+      while (digitalRead(IR_SENSOR_PIN) == LOW && millis() - start < 10000) {
+        delay(50);
+      }
+      delay(200);  // Debounce
+    }
+    delay(50);
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("IR Result:");
+  lcd.setCursor(0, 1);
+  if (detected > 0) {
+    lcd.print("PASS! Count:");
+    lcd.print(detected);
+    Serial.print("  ✓ IR sensor detected "); Serial.print(detected); Serial.println(" object(s)\n");
+  } else {
+    lcd.print("No detection");
+    Serial.println("  ⚠️  No objects detected — check sensor position\n");
+  }
+  delay(2000);
+}
+
+// ═══════════════════════════════════════════════
+//  TEST 6: ALL TOGETHER — Full Dispense Cycle
+// ═══════════════════════════════════════════════
+void test6_AllTogether() {
+  Serial.println("━━━ TEST 6: FULL DISPENSE SIMULATION ━━━");
 
   // Alert phase
-  showOnDisplay("ALARM!", "Metformin", "8:00 AM - Take now!");
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("!! ALARM !!");
+  lcd.setCursor(0, 1);
+  lcd.print("Metformin 8:00AM");
   digitalWrite(LED_RED, HIGH);
   for (int i = 0; i < 5; i++) {
     digitalWrite(BUZZER_PIN, HIGH); delay(200);
@@ -338,7 +395,11 @@ void test5_AllTogether() {
   delay(1000);
 
   // Dispensing phase
-  showOnDisplay("DISPENSING", "Metformin", "500mg");
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("DISPENSING...");
+  lcd.setCursor(0, 1);
+  lcd.print("Metformin 500mg");
   testServo.write(90);
   Serial.println("  → Servo OPEN — dispensing...");
   delay(3000);
@@ -354,7 +415,11 @@ void test5_AllTogether() {
   delay(800);
   digitalWrite(BUZZER_PIN, LOW);
 
-  showOnDisplay("DISPENSED!", "Metformin 500mg", "Take with food");
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("DISPENSED!");
+  lcd.setCursor(0, 1);
+  lcd.print("Take with food");
   Serial.println("  → Dispense complete!");
   delay(3000);
 
@@ -363,31 +428,9 @@ void test5_AllTogether() {
 }
 
 // ═══════════════════════════════════════════════
-//  HELPER: Show text on OLED
-// ═══════════════════════════════════════════════
-void showOnDisplay(const char* line1, const char* line2, const char* line3) {
-  display.clearDisplay();
-
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 2);
-  display.println(line1);
-
-  display.setTextSize(1);
-  display.setCursor(0, 28);
-  display.println(line2);
-
-  display.setCursor(0, 45);
-  display.println(line3);
-
-  display.display();
-}
-
-// ═══════════════════════════════════════════════
 //  LOOP — Idle display after tests
 // ═══════════════════════════════════════════════
 void loop() {
-  // After tests, show a clock-like idle screen
   static unsigned long lastUpdate = 0;
   static bool toggle = false;
 
@@ -399,30 +442,20 @@ void loop() {
     int mm = (secs / 60) % 60;
     int ss = secs % 60;
 
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println("ArogyaSathi Ready");
-    display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ready ");
 
-    display.setTextSize(2);
-    display.setCursor(15, 20);
+    // Uptime clock
     char timeStr[10];
     sprintf(timeStr, "%02d:%02d", mm, ss);
-    display.println(timeStr);
+    lcd.print(timeStr);
 
-    display.setTextSize(1);
-    display.setCursor(0, 45);
-    display.println("Waiting for alarm...");
-    display.setCursor(0, 56);
-    display.println("All tests PASSED");
+    // Blinking dot
+    if (toggle) lcd.print(" *");
 
-    // Blinking indicator
-    if (toggle) {
-      display.fillCircle(120, 56, 3, SSD1306_WHITE);
-    }
-
-    display.display();
+    lcd.setCursor(0, 1);
+    lcd.print("All tests PASS");
 
     // Blink green LED slowly
     digitalWrite(LED_GREEN, toggle ? HIGH : LOW);

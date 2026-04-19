@@ -592,7 +592,25 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.heavyImpact();
-        _snack('Logging medication refill...');
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: _S.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text('Refill Dispenser', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+            content: Text(
+                'To log a refill:\n\n1. Open the physical ArogyaSathi dispenser.\n2. Add the pills to the empty carousel slots.\n3. Keep the hardware powered on so it recalibrates.\n4. Update the pill quantities in the Reminders tab.',
+                style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant)
+            ),
+            actions: [
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: _S.secondary),
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Got it', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
       },
       child: Container(
         width: double.infinity,

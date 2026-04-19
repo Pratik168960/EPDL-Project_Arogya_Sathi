@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'hardware_screen.dart';
@@ -53,6 +54,192 @@ class _ProfileScreenState extends State<ProfileScreen> {
   User? get _authUser => FirebaseAuth.instance.currentUser;
 
   String get _uid => AuthService.currentUserId ?? '';
+
+  // 1. The missing settings key
+  final GlobalKey _settingsKey = GlobalKey();
+
+  // 2. Edit Profile — updates Firebase Auth displayName + Firestore
+  void _showEditProfileDialog() {
+    final controller = TextEditingController(text: _authUser?.displayName ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _S.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Edit Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              style: GoogleFonts.outfit(color: _S.primaryContainer),
+              decoration: InputDecoration(
+                labelText: 'Display Name',
+                labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
+                filled: true,
+                fillColor: _S.surfaceContainerHighest,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: _S.onSurfaceVariant)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _S.secondary),
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) return;
+              try {
+                await _authUser?.updateDisplayName(newName);
+                await FirebaseFirestore.instance.collection('users').doc(_uid).update({'name': newName});
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  setState(() {});
+                  _snack('Profile updated!');
+                }
+              } catch (e) {
+                if (mounted) _snack('Error: $e');
+              }
+            },
+            child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 3. Notification Settings — real toggles persisted to Firestore
+  void _showNotificationSettingsDialog() {
+    bool medReminders = true;
+    bool missedDose = true;
+    bool sosAlerts = true;
+    bool caregiverUpdates = true;
+
+    // Load current prefs from Firestore
+    FirebaseFirestore.instance.collection('users').doc(_uid).get().then((doc) {
+      final prefs = doc.data()?['notification_prefs'] as Map<String, dynamic>? ?? {};
+      medReminders = prefs['med_reminders'] ?? true;
+      missedDose = prefs['missed_dose'] ?? true;
+      sosAlerts = prefs['sos_alerts'] ?? true;
+      caregiverUpdates = prefs['caregiver_updates'] ?? true;
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _S.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Notification Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _notifToggle('Medicine Reminders', 'Alarm alerts for medications', medReminders, (v) {
+                setDialogState(() => medReminders = v);
+              }),
+              _notifToggle('Missed Dose Alerts', 'Alerts when a dose is missed', missedDose, (v) {
+                setDialogState(() => missedDose = v);
+              }),
+              _notifToggle('SOS Alerts', 'Emergency SOS notifications', sosAlerts, (v) {
+                setDialogState(() => sosAlerts = v);
+              }),
+              _notifToggle('Caregiver Updates', 'Updates from linked caregivers', caregiverUpdates, (v) {
+                setDialogState(() => caregiverUpdates = v);
+              }),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.outfit(color: _S.onSurfaceVariant)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _S.secondary),
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('users').doc(_uid).update({
+                  'notification_prefs': {
+                    'med_reminders': medReminders,
+                    'missed_dose': missedDose,
+                    'sos_alerts': sosAlerts,
+                    'caregiver_updates': caregiverUpdates,
+                  }
+                });
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _snack('Notification settings saved!');
+                }
+              },
+              child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _notifToggle(String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: _S.primaryContainer)),
+                Text(subtitle, style: GoogleFonts.outfit(fontSize: 10, color: _S.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: _S.secondary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. The missing Info Sheet function (handles Privacy Policy & Support)
+  void _showInfoSheet(String title, String content) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              content,
+              style: const TextStyle(fontSize: 16, height: 1.5),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
 
   // ── Firestore references ─────────────────────
   DocumentReference<Map<String, dynamic>> get _basicHealthDoc =>
@@ -133,7 +320,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           GestureDetector(
-            onTap: () => _snack('Settings'),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              // Scroll down to Account Settings section
+              Scrollable.ensureVisible(
+                _settingsKey.currentContext!,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOut,
+              );
+            },
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
@@ -217,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               // Edit Profile Button
               GestureDetector(
-                onTap: () => _snack('Edit profile'),
+                onTap: () => _showEditProfileDialog(),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
@@ -530,9 +725,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Action buttons
           Row(
             children: [
-              _actionButton(Icons.call, () => _snack('Calling $name...')),
+              _actionButton(Icons.call, () async {
+                final uri = Uri.parse('tel:+911234567890');
+                if (await canLaunchUrl(uri)) {
+                  launchUrl(uri);
+                } else {
+                  _snack('Could not open phone dialer');
+                }
+              }),
               const SizedBox(width: 8),
-              _actionButton(Icons.chat_bubble_outline, () => _snack('Messaging $name...')),
+              _actionButton(Icons.chat_bubble_outline, () async {
+                final uri = Uri.parse('sms:+911234567890');
+                if (await canLaunchUrl(uri)) {
+                  launchUrl(uri);
+                } else {
+                  _snack('Could not open messaging app');
+                }
+              }),
             ],
           ),
         ],
@@ -685,7 +894,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _settingsItem(
                 icon: Icons.notifications_outlined,
                 label: 'Notification Settings',
-                onTap: () => _snack('Notification settings'),
+                onTap: () => _showNotificationSettingsDialog(),
               ),
               _divider(),
               _settingsItem(
@@ -700,13 +909,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _settingsItem(
                 icon: Icons.security_outlined,
                 label: 'Privacy Policy',
-                onTap: () => _snack('Privacy Policy'),
+                onTap: () => _showInfoSheet('Privacy Policy', 'ArogyaSathi respects your privacy.\n\n• Your health data is stored securely in Firebase with encryption at rest.\n• Data is only shared with linked caregivers that YOU approve.\n• You can revoke caregiver access at any time.\n• We never sell your data to third parties.\n• All communication is encrypted via TLS/SSL.\n• You can delete your account and all data from Settings.\n\nFor questions: support@arogyasathi.com'),
               ),
               _divider(),
               _settingsItem(
                 icon: Icons.help_outline,
                 label: 'Support & Help',
-                onTap: () => _snack('Support & Help'),
+                onTap: () => _showInfoSheet('Support & Help', '📧 Email: support@arogyasathi.com\n\n📞 Helpline: 1800-XXX-XXXX\n(Mon-Fri, 9 AM - 6 PM IST)\n\n💡 Quick Tips:\n• Add medicines via the + button on Reminders tab\n• Link caregivers via Profile → Share Code\n• Set up Medical ID for emergencies\n• Use the SOS button for emergencies\n\n🔧 Troubleshooting:\n• If alarms don\'t ring, check notification permissions\n• If dispenser fails, check WiFi on the ESP32\n• Clear app cache from Phone Settings if issues persist'),
               ),
               _divider(),
               _settingsItem(

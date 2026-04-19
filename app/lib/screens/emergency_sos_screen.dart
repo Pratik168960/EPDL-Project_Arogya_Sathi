@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 
 // ═══════════════════════════════════════════════
@@ -453,16 +454,20 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
       children: [
         // Call Emergency Services
         GestureDetector(
-          onTap: () {
+          onTap: () async {
             HapticFeedback.heavyImpact();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Calling emergency services...',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-              backgroundColor: _S.secondary,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              margin: const EdgeInsets.all(16),
-            ));
+            final url = Uri.parse('tel:108');
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url);
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Could not open phone dialer', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  backgroundColor: _S.error,
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            }
           },
           child: Container(
             width: double.infinity,

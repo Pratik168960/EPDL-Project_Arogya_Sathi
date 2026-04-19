@@ -11,7 +11,9 @@ import '../services/auth_service.dart';
 import '../services/alarm_schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../screens/medication_detail_screen.dart';
+import '../screens/adherence_history_screen.dart';
 import '../widgets/add_medicine_sheet.dart';
 
 // ═══════════════════════════════════════════════
@@ -140,14 +142,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: AppColors.danger,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('🚨 SOS sent — calling 108 & alerting contacts',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                        backgroundColor: AppColors.danger,
-                        duration: const Duration(seconds: 4),
-                      ));
+                      final url = Uri.parse('tel:108');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      } else {
+                        if (mounted) _snack('Could not open phone dialer.');
+                      }
                     },
                     child: Text('CALL 108', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   ),
@@ -223,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 GestureDetector(
-                  onTap: () => _snack('No new notifications'),
+                  onTap: () => _showRecentNotifications(),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -327,7 +329,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _quickActionButton(Icons.event_available, 'BOOK APPT', const Color(0xFF006399), () => _snack('Opening appointment booking...')),
+                      _quickActionButton(Icons.event_available, 'BOOK APPT', const Color(0xFF006399), () {
+                        HapticFeedback.selectionClick();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AdherenceHistoryScreen()));
+                      }),
                       _quickActionButton(Icons.note_add, 'ADD RECORD', const Color(0xFF006399), widget.onNavigateToRecords ?? () {}),
                       _quickActionButton(Icons.medication, 'MEDICINES', const Color(0xFF006399), widget.onNavigateToReminders ?? () {}),
                       _quickActionButton(Icons.emergency, 'EMERGENCY', const Color(0xFFBA1A1A), _showSOSDialog),
@@ -925,6 +930,72 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(' — CALL 108',
                 style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.danger)),
           ]),
+        ),
+      ),
+    );
+  }
+
+  void _showRecentNotifications() {
+    final uid = AuthService.currentUserId ?? '';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SizedBox(
+        height: 400,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications_active, color: AppColors.navy, size: 24),
+                  const SizedBox(width: 12),
+                  Text('Recent Activity', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users').doc(uid).collection('history')
+                    .orderBy('taken_at', descending: true)
+                    .limit(15)
+                    .snapshots(),
+                builder: (ctx, snap) {
+                  if (!snap.hasData || snap.data!.docs.isEmpty) {
+                    return Center(child: Text('No recent activity', style: GoogleFonts.outfit(color: Colors.grey)));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: snap.data!.docs.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final d = snap.data!.docs[i].data() as Map<String, dynamic>;
+                      final name = d['name'] ?? 'Medicine';
+                      final status = d['status'] ?? 'Unknown';
+                      final isTaken = status == 'Taken';
+                      return ListTile(
+                        leading: Icon(
+                          isTaken ? Icons.check_circle : Icons.warning_rounded,
+                          color: isTaken ? const Color(0xFF2E7D32) : const Color(0xFFBA1A1A),
+                        ),
+                        title: Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: Text(status, style: GoogleFonts.outfit(fontSize: 12, color: isTaken ? const Color(0xFF2E7D32) : const Color(0xFFBA1A1A))),
+                        trailing: Text(
+                          d['scheduled_time'] ?? '',
+                          style: GoogleFonts.jetBrainsMono(fontSize: 11, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

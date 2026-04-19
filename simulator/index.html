@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArogyaSathi — Three-Tier IoT Architecture Simulator</title>
+    <meta name="description" content="Interactive architecture simulator for ArogyaSathi's Three-Tier IoT Medicine Dispenser system">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --navy: #0D1B2A;
+            --navy-light: #1B2D45;
+            --navy-lighter: #243B55;
+            --teal: #00897B;
+            --teal-glow: rgba(0, 137, 123, 0.4);
+            --blue: #006399;
+            --blue-glow: rgba(0, 99, 153, 0.4);
+            --green: #2E7D32;
+            --green-glow: rgba(46, 125, 50, 0.5);
+            --orange: #E65100;
+            --orange-glow: rgba(230, 81, 0, 0.4);
+            --red: #BA1A1A;
+            --red-glow: rgba(186, 26, 26, 0.4);
+            --white: #F7FAFD;
+            --gray: #8899AA;
+            --surface: #162032;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--navy);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ═══ HEADER ═══ */
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00B4D8, var(--teal), #26A69A);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: var(--gray);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(0,137,123,0.15);
+            color: var(--teal);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-top: 12px;
+            border: 1px solid rgba(0,137,123,0.3);
+        }
+
+        /* ═══ ARCHITECTURE CANVAS ═══ */
+        .canvas {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .tiers {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .tiers { grid-template-columns: 1fr; gap: 16px; }
+        }
+
+        /* ═══ TIER CARD ═══ */
+        .tier {
+            background: var(--surface);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .tier.active {
+            border-color: var(--teal);
+            box-shadow: 0 0 30px var(--teal-glow), inset 0 0 30px rgba(0,137,123,0.05);
+        }
+        .tier.pulse {
+            animation: tierPulse 0.6s ease;
+        }
+        @keyframes tierPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .tier-header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .tier-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .tier-icon.client { background: linear-gradient(135deg, var(--blue), #0091EA); }
+        .tier-icon.cloud { background: linear-gradient(135deg, var(--teal), #26A69A); }
+        .tier-icon.edge { background: linear-gradient(135deg, var(--orange), #FF6D00); }
+
+        .tier-title { font-size: 1.1rem; font-weight: 800; }
+        .tier-subtitle { font-size: 0.75rem; color: var(--gray); font-weight: 500; margin-top: 2px; }
+
+        .tier-body { padding: 16px 24px 24px; }
+
+        /* Status indicator */
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: blink 2s infinite;
+        }
+        .status-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+        .status-dot.idle { background: var(--gray); }
+        .status-dot.busy { background: var(--orange); box-shadow: 0 0 8px var(--orange-glow); animation: blink 0.5s infinite; }
+        .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Component list */
+        .component {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        .component.highlight {
+            background: rgba(0,137,123,0.1);
+            border-color: rgba(0,137,123,0.3);
+        }
+        .component-icon {
+            font-size: 1.1rem;
+            width: 28px;
+            text-align: center;
+        }
+        .component-label { flex: 1; }
+        .component-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .component-status.ready { background: rgba(46,125,50,0.15); color: #66BB6A; }
+        .component-status.active { background: rgba(0,137,123,0.15); color: var(--teal); }
+        .component-status.pending { background: rgba(255,152,0,0.15); color: #FFA726; }
+        .component-status.done { background: rgba(46,125,50,0.2); color: #81C784; }
+        .component-status.fail { background: rgba(186,26,26,0.15); color: #EF5350; }
+
+        /* ═══ DATA FLOW ARROWS ═══ */
+        .flow-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .packet {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+        .packet.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .packet.right { transform: translateX(20px); }
+        .packet.right.visible { transform: translateX(0); }
+
+        .packet.write { background: rgba(0,137,123,0.15); border: 1px solid rgba(0,137,123,0.3); color: #4DB6AC; }
+        .packet.read { background: rgba(0,99,153,0.15); border: 1px solid rgba(0,99,153,0.3); color: #64B5F6; }
+        .packet.push { background: rgba(230,81,0,0.15); border: 1px solid rgba(230,81,0,0.3); color: #FF8A65; }
+        .packet.success { background: rgba(46,125,50,0.15); border: 1px solid rgba(46,125,50,0.3); color: #81C784; }
+        .packet.alert { background: rgba(186,26,26,0.15); border: 1px solid rgba(186,26,26,0.3); color: #EF5350; }
+
+        .arrow {
+            color: var(--gray);
+            font-size: 1.2rem;
+            opacity: 0.3;
+            transition: all 0.3s;
+        }
+        .arrow.active { opacity: 1; color: var(--teal); }
+
+        /* ═══ LOG CONSOLE ═══ */
+        .console {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            margin-top: 24px;
+            overflow: hidden;
+        }
+        .console-header {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .console-header h3 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .console-body {
+            padding: 16px 20px;
+            max-height: 260px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            line-height: 1.8;
+        }
+        .console-body::-webkit-scrollbar { width: 4px; }
+        .console-body::-webkit-scrollbar-track { background: transparent; }
+        .console-body::-webkit-scrollbar-thumb { background: var(--gray); border-radius: 4px; }
+
+        .log { opacity: 0; animation: logFade 0.3s forwards; }
+        @keyframes logFade { to { opacity: 1; } }
+        .log .time { color: var(--gray); margin-right: 8px; }
+        .log .tag { padding: 1px 6px; border-radius: 4px; margin-right: 6px; font-weight: 700; font-size: 0.65rem; }
+        .log .tag.app { background: rgba(0,99,153,0.2); color: #64B5F6; }
+        .log .tag.firebase { background: rgba(0,137,123,0.2); color: #4DB6AC; }
+        .log .tag.esp32 { background: rgba(230,81,0,0.2); color: #FF8A65; }
+        .log .tag.fcm { background: rgba(156,39,176,0.2); color: #CE93D8; }
+        .log .tag.ir { background: rgba(46,125,50,0.2); color: #81C784; }
+        .log .tag.error { background: rgba(186,26,26,0.2); color: #EF5350; }
+
+        /* ═══ CONTROLS ═══ */
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 28px 0;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .btn:hover::after { opacity: 1; }
+        .btn:active { transform: scale(0.96); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background: linear-gradient(135deg, var(--teal), #26A69A); color: white; }
+        .btn-primary:hover { box-shadow: 0 8px 24px var(--teal-glow); }
+        .btn-secondary { background: var(--navy-lighter); color: var(--white); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-danger { background: linear-gradient(135deg, var(--red), #D32F2F); color: white; }
+        .btn-danger:hover { box-shadow: 0 8px 24px var(--red-glow); }
+        .btn-warning { background: linear-gradient(135deg, var(--orange), #FF6D00); color: white; }
+
+        /* ═══ PROGRESS BAR ═══ */
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            margin: 16px 0 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--teal), #26A69A);
+            width: 0;
+            transition: width 0.4s ease;
+        }
+        .progress-label {
+            font-size: 0.72rem;
+            color: var(--gray);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        /* ═══ STATS ROW ═══ */
+        .stats {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: var(--surface);
+            border-radius: 14px;
+            padding: 16px 24px;
+            text-align: center;
+            min-width: 120px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--teal), #00B4D8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label { font-size: 0.7rem; color: var(--gray); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ═══ FOOTER ═══ */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray);
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+    <h1>ArogyaSathi</h1>
+    <p>Three-Tier IoT Architecture — Interactive Simulator</p>
+    <div class="badge">LIVE DEMO</div>
+</div>
+
+<!-- ═══ STATS ═══ -->
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value" id="statDispensed">0</div>
+        <div class="stat-label">Dispensed</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" id="statMissed">0</div>
+        <div class="stat-label">Missed</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" id="statPackets">0</div>
+        <div class="stat-label">Data Packets</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" id="statLatency">0ms</div>
+        <div class="stat-label">Avg Latency</div>
+    </div>
+</div>
+
+<!-- ═══ CONTROLS ═══ -->
+<div class="controls">
+    <button class="btn btn-primary" id="btnDispense" onclick="runDispenseCycle()">
+        💊 Run Dispense Cycle
+    </button>
+    <button class="btn btn-danger" id="btnMissed" onclick="runMissedDose()">
+        ⚠️ Simulate Missed Dose
+    </button>
+    <button class="btn btn-warning" id="btnSOS" onclick="runSOS()">
+        🚨 Trigger SOS
+    </button>
+    <button class="btn btn-secondary" onclick="resetSimulator()">
+        🔄 Reset
+    </button>
+</div>
+
+<!-- ═══ ARCHITECTURE TIERS ═══ -->
+<div class="canvas">
+    <div class="tiers">
+
+        <!-- TIER 1: CLIENT -->
+        <div class="tier" id="tierClient">
+            <div class="tier-header">
+                <div class="tier-icon client">📱</div>
+                <div>
+                    <div class="tier-title">Tier 1 — Client</div>
+                    <div class="tier-subtitle">Flutter Mobile App</div>
+                </div>
+            </div>
+            <div class="tier-body">
+                <div class="component" id="compAuth">
+                    <span class="component-icon">🔐</span>
+                    <span class="component-label">Firebase Auth</span>
+                    <span class="component-status ready" id="authStatus">READY</span>
+                </div>
+                <div class="component" id="compCaregiver">
+                    <span class="component-icon">👨‍⚕️</span>
+                    <span class="component-label">Caregiver Dashboard</span>
+                    <span class="component-status ready" id="caregiverStatus">IDLE</span>
+                </div>
+                <div class="component" id="compPatient">
+                    <span class="component-icon">💊</span>
+                    <span class="component-label">Patient Schedule</span>
+                    <span class="component-status ready" id="patientStatus">IDLE</span>
+                </div>
+                <div class="component" id="compFCM">
+                    <span class="component-icon">🔔</span>
+                    <span class="component-label">FCM Push</span>
+                    <span class="component-status ready" id="fcmStatus">LISTEN</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="clientProgress"></div></div>
+                <div class="progress-label" id="clientLabel">Ready</div>
+            </div>
+        </div>
+
+        <!-- TIER 2: CLOUD -->
+        <div class="tier" id="tierCloud">
+            <div class="tier-header">
+                <div class="tier-icon cloud">☁️</div>
+                <div>
+                    <div class="tier-title">Tier 2 — Cloud</div>
+                    <div class="tier-subtitle">Firebase Backend</div>
+                </div>
+            </div>
+            <div class="tier-body">
+                <div class="component" id="compFirestore">
+                    <span class="component-icon">🗄️</span>
+                    <span class="component-label">Firestore DB</span>
+                    <span class="component-status ready" id="firestoreStatus">SYNC</span>
+                </div>
+                <div class="component" id="compAlarms">
+                    <span class="component-icon">⏰</span>
+                    <span class="component-label">alarm_schedules</span>
+                    <span class="component-status ready" id="alarmsStatus">3 ACTIVE</span>
+                </div>
+                <div class="component" id="compHardware">
+                    <span class="component-icon">🔧</span>
+                    <span class="component-label">hardware_control</span>
+                    <span class="component-status ready" id="hardwareStatus">IDLE</span>
+                </div>
+                <div class="component" id="compFunctions">
+                    <span class="component-icon">⚡</span>
+                    <span class="component-label">Cloud Functions</span>
+                    <span class="component-status ready" id="functionsStatus">READY</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="cloudProgress"></div></div>
+                <div class="progress-label" id="cloudLabel">Listening</div>
+            </div>
+        </div>
+
+        <!-- TIER 3: EDGE -->
+        <div class="tier" id="tierEdge">
+            <div class="tier-header">
+                <div class="tier-icon edge">🔌</div>
+                <div>
+                    <div class="tier-title">Tier 3 — Edge</div>
+                    <div class="tier-subtitle">ESP32 Dispenser</div>
+                </div>
+            </div>
+            <div class="tier-body">
+                <div class="component" id="compStepper">
+                    <span class="component-icon">⚙️</span>
+                    <span class="component-label">Stepper Motor</span>
+                    <span class="component-status ready" id="stepperStatus">SLOT 0</span>
+                </div>
+                <div class="component" id="compServo">
+                    <span class="component-icon">🚪</span>
+                    <span class="component-label">Servo Gate</span>
+                    <span class="component-status ready" id="servoStatus">CLOSED</span>
+                </div>
+                <div class="component" id="compIR">
+                    <span class="component-icon">📡</span>
+                    <span class="component-label">IR Sensor</span>
+                    <span class="component-status ready" id="irStatus">BEAM OK</span>
+                </div>
+                <div class="component" id="compOLED">
+                    <span class="component-icon">🖥️</span>
+                    <span class="component-label">OLED Display</span>
+                    <span class="component-status ready" id="oledStatus">IDLE</span>
+                </div>
+                <div class="component" id="compBuzzer">
+                    <span class="component-icon">🔊</span>
+                    <span class="component-label">Buzzer</span>
+                    <span class="component-status ready" id="buzzerStatus">SILENT</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="edgeProgress"></div></div>
+                <div class="progress-label" id="edgeLabel">Online — Slot 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ DATA FLOW VISUALIZATION ═══ -->
+    <div class="flow-container" id="flowContainer">
+        <span class="packet write" id="pkt1">📱 schedule.write()</span>
+        <span class="arrow" id="arr1">→</span>
+        <span class="packet write" id="pkt2">☁️ Firestore.set()</span>
+        <span class="arrow" id="arr2">→</span>
+        <span class="packet read" id="pkt3">🔌 ESP32.poll()</span>
+        <span class="arrow" id="arr3">→</span>
+        <span class="packet success" id="pkt4">✓ IR_CONFIRMED</span>
+        <span class="arrow" id="arr4">→</span>
+        <span class="packet push" id="pkt5">🔔 FCM.push()</span>
+    </div>
+
+    <!-- ═══ LOG CONSOLE ═══ -->
+    <div class="console">
+        <div class="console-header">
+            <h3>📋 Live Event Log</h3>
+            <button class="btn btn-secondary" style="padding:6px 14px;font-size:0.7rem;" onclick="clearLog()">Clear</button>
+        </div>
+        <div class="console-body" id="logBody">
+            <div class="log"><span class="time">00:00:00</span><span class="tag firebase">FIREBASE</span> System initialized. Waiting for commands...</div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    ArogyaSathi © 2026 — EPDL Project &nbsp;|&nbsp; Three-Tier IoT Medicine Dispenser
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let running = false;
+let stats = { dispensed: 0, missed: 0, packets: 0, latencies: [] };
+let currentSlot = 0;
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function now() {
+    const d = new Date();
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+}
+
+function log(tag, msg) {
+    const body = document.getElementById('logBody');
+    const el = document.createElement('div');
+    el.className = 'log';
+    el.innerHTML = `<span class="time">${now()}</span><span class="tag ${tag}">${tag.toUpperCase()}</span>${msg}`;
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+    stats.packets++;
+    updateStats();
+}
+
+function clearLog() {
+    document.getElementById('logBody').innerHTML = '';
+    log('firebase', 'Log cleared. System ready.');
+}
+
+function setStatus(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'component-status ' + cls;
+}
+
+function highlightComp(id, on) {
+    document.getElementById(id).classList.toggle('highlight', on);
+}
+
+function setProgress(tier, pct, label) {
+    document.getElementById(tier + 'Progress').style.width = pct + '%';
+    document.getElementById(tier + 'Label').textContent = label;
+}
+
+function activateTier(id, on) {
+    const el = document.getElementById(id);
+    el.classList.toggle('active', on);
+    if (on) { el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 600); }
+}
+
+function showPacket(id, show) {
+    const el = document.getElementById(id);
+    el.classList.toggle('visible', show);
+}
+
+function activateArrow(id, on) {
+    document.getElementById(id).classList.toggle('active', on);
+}
+
+function updateStats() {
+    document.getElementById('statDispensed').textContent = stats.dispensed;
+    document.getElementById('statMissed').textContent = stats.missed;
+    document.getElementById('statPackets').textContent = stats.packets;
+    const avg = stats.latencies.length ? Math.round(stats.latencies.reduce((a,b)=>a+b,0)/stats.latencies.length) : 0;
+    document.getElementById('statLatency').textContent = avg + 'ms';
+}
+
+function disableButtons(disabled) {
+    document.querySelectorAll('.btn').forEach(b => {
+        if (!b.textContent.includes('Reset') && !b.textContent.includes('Clear')) {
+            b.disabled = disabled;
+        }
+    });
+}
+
+function resetPackets() {
+    for (let i = 1; i <= 5; i++) { showPacket('pkt'+i, false); activateArrow('arr'+i, false); }
+}
+
+// ═══════════════════════════════════════════
+//  DISPENSE CYCLE SIMULATION
+// ═══════════════════════════════════════════
+async function runDispenseCycle() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    resetPackets();
+    const t0 = performance.now();
+    const medicine = ['Paracetamol', 'Metformin', 'Amoxicillin', 'Aspirin'][Math.floor(Math.random()*4)];
+    const targetSlot = (currentSlot + 1) % 4;
+
+    // ── STEP 1: App writes schedule ──
+    log('app', `Caregiver sets schedule: <b>${medicine}</b> → Slot ${targetSlot}`);
+    activateTier('tierClient', true);
+    highlightComp('compCaregiver', true);
+    setStatus('caregiverStatus', 'WRITING', 'active');
+    setProgress('client', 30, 'Writing schedule...');
+    showPacket('pkt1', true);
+    await sleep(800);
+
+    // ── STEP 2: Firestore receives data ──
+    activateArrow('arr1', true);
+    showPacket('pkt2', true);
+    activateTier('tierCloud', true);
+    highlightComp('compFirestore', true);
+    setStatus('firestoreStatus', 'WRITE', 'active');
+    setStatus('alarmsStatus', 'UPDATING', 'active');
+    log('firebase', `Firestore.set("alarm_schedules/${medicine}") → {hour: ${8+targetSlot}, slot: ${targetSlot}}`);
+    setProgress('cloud', 40, 'Syncing alarm...');
+    await sleep(700);
+
+    setStatus('hardwareStatus', 'COMMAND', 'active');
+    highlightComp('compHardware', true);
+    log('firebase', `hardware_control.dispense_now = true, medicine = "${medicine}"`);
+    setProgress('client', 60, 'Command sent');
+    await sleep(600);
+
+    // ── STEP 3: ESP32 polls and detects ──
+    activateArrow('arr2', true);
+    showPacket('pkt3', true);
+    activateTier('tierEdge', true);
+    log('esp32', `ESP32 polls Firestore... <b>COMMAND DETECTED!</b>`);
+    setProgress('edge', 20, 'Command received');
+    await sleep(500);
+
+    // Buzzer
+    highlightComp('compBuzzer', true);
+    setStatus('buzzerStatus', '🔊 BEEP', 'active');
+    log('esp32', `Buzzer: 3 alert beeps`);
+    await sleep(400);
+    setStatus('buzzerStatus', 'SILENT', 'ready');
+    highlightComp('compBuzzer', false);
+
+    // OLED
+    highlightComp('compOLED', true);
+    setStatus('oledStatus', medicine.substring(0,8), 'active');
+    log('esp32', `OLED: Displaying "${medicine}" — Dispensing...`);
+    setProgress('edge', 35, 'Dispensing...');
+    await sleep(400);
+
+    // Stepper
+    highlightComp('compStepper', true);
+    setStatus('stepperStatus', 'ROTATING', 'active');
+    log('esp32', `Stepper: Rotating carousel → Slot ${targetSlot} (${(targetSlot-currentSlot+4)%4 * 512} steps)`);
+    setProgress('edge', 50, 'Rotating carousel...');
+    await sleep(1200);
+    currentSlot = targetSlot;
+    setStatus('stepperStatus', `SLOT ${currentSlot}`, 'done');
+    highlightComp('compStepper', false);
+    log('esp32', `Stepper: ✓ Now at Slot ${currentSlot}`);
+
+    // Servo
+    highlightComp('compServo', true);
+    setStatus('servoStatus', 'OPEN 90°', 'active');
+    log('esp32', `Servo: Gate OPEN → Pill dropping...`);
+    setProgress('edge', 65, 'Gate open — waiting for pill...');
+    await sleep(800);
+
+    // IR Sensor
+    highlightComp('compIR', true);
+    setStatus('irStatus', 'WAITING', 'pending');
+    log('esp32', `IR Sensor: Monitoring beam... ▓▓▓▓▓▓▓▓░░`);
+    setProgress('edge', 80, 'IR sensing...');
+    await sleep(1500);
+
+    // IR confirms!
+    setStatus('irStatus', '✓ BROKEN', 'done');
+    log('ir', `<b>✓ BEAM BROKEN — Pill detected!</b> Drop confirmed.`);
+    setProgress('edge', 90, 'IR confirmed!');
+    await sleep(400);
+
+    // Close gate
+    setStatus('servoStatus', 'CLOSED', 'done');
+    highlightComp('compServo', false);
+    highlightComp('compIR', false);
+    log('esp32', `Servo: Gate CLOSED`);
+
+    // ── STEP 4: Feedback to Firebase ──
+    activateArrow('arr3', true);
+    showPacket('pkt4', true);
+    log('esp32', `Firebase ← status: "dispensed", ir_confirmed: true`);
+    setStatus('hardwareStatus', 'DISPENSED', 'done');
+    setProgress('cloud', 80, 'Status updated');
+    await sleep(600);
+
+    // ── STEP 5: FCM Push ──
+    activateArrow('arr4', true);
+    showPacket('pkt5', true);
+    highlightComp('compFunctions', true);
+    setStatus('functionsStatus', 'TRIGGER', 'active');
+    log('fcm', `Cloud Function: onHardwareStatusChange TRIGGERED`);
+    await sleep(400);
+
+    log('fcm', `FCM Push → Patient: "✅ Pill Dispensed — ${medicine}"`);
+    log('fcm', `FCM Push → Caregiver: "🔔 Patient Alert — ${medicine} dispensed"`);
+    highlightComp('compFCM', true);
+    setStatus('fcmStatus', '📩 PUSH', 'active');
+    setProgress('client', 90, 'Push received!');
+    await sleep(600);
+
+    setStatus('patientStatus', '✓ TAKEN', 'done');
+    highlightComp('compPatient', true);
+
+    // ── COMPLETE ──
+    const latency = Math.round(performance.now() - t0);
+    stats.latencies.push(latency);
+    stats.dispensed++;
+    updateStats();
+
+    setProgress('client', 100, `Done — ${latency}ms`);
+    setProgress('cloud', 100, 'Synced');
+    setProgress('edge', 100, `Slot ${currentSlot} — Dispensed`);
+    setStatus('oledStatus', 'DONE ✓', 'done');
+    log('app', `<b style="color:#81C784">═══ DISPENSE CYCLE COMPLETE ═══ ${medicine} dispensed in ${latency}ms</b>`);
+
+    await sleep(2000);
+
+    // Reset highlights
+    ['compCaregiver','compFirestore','compHardware','compFunctions','compFCM','compPatient','compOLED'].forEach(c => highlightComp(c, false));
+    ['tierClient','tierCloud','tierEdge'].forEach(t => activateTier(t, false));
+    setStatus('caregiverStatus', 'IDLE', 'ready');
+    setStatus('firestoreStatus', 'SYNC', 'ready');
+    setStatus('hardwareStatus', 'IDLE', 'ready');
+    setStatus('functionsStatus', 'READY', 'ready');
+    setStatus('fcmStatus', 'LISTEN', 'ready');
+    setStatus('patientStatus', 'IDLE', 'ready');
+    setStatus('oledStatus', 'IDLE', 'ready');
+    setProgress('client', 0, 'Ready');
+    setProgress('cloud', 0, 'Listening');
+    setProgress('edge', 0, `Online — Slot ${currentSlot}`);
+    resetPackets();
+
+    running = false;
+    disableButtons(false);
+}
+
+// ═══════════════════════════════════════════
+//  MISSED DOSE SIMULATION
+// ═══════════════════════════════════════════
+async function runMissedDose() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    resetPackets();
+
+    const medicine = 'Metformin';
+    log('app', `⏰ Alarm fired: <b>${medicine}</b> at 08:00 AM`);
+    activateTier('tierClient', true);
+    highlightComp('compPatient', true);
+    setStatus('patientStatus', 'ALARM!', 'pending');
+    await sleep(1000);
+
+    log('app', `⏳ Waiting for patient to acknowledge...`);
+    setProgress('client', 30, 'Waiting for response...');
+    await sleep(1500);
+
+    log('app', `⏳ 5 minutes passed... no response`);
+    setProgress('client', 50, '5 min — no response');
+    await sleep(1000);
+
+    log('app', `⏳ 15 minutes passed... <b style="color:#EF5350">MISSED!</b>`);
+    setProgress('client', 70, '15 min — MISSED');
+    setStatus('patientStatus', 'MISSED', 'fail');
+    await sleep(800);
+
+    // Cloud Function triggers
+    activateTier('tierCloud', true);
+    highlightComp('compFunctions', true);
+    setStatus('functionsStatus', 'TRIGGER', 'active');
+    log('firebase', `Cloud Function: checkMissedDoses() — found overdue alarm`);
+    await sleep(600);
+
+    log('firebase', `alarm_schedules/${medicine} → status: "missed"`);
+    setStatus('alarmsStatus', 'MISSED', 'fail');
+    highlightComp('compAlarms', true);
+    await sleep(500);
+
+    log('firebase', `History logged: {name: "${medicine}", status: "Missed"}`);
+    log('firebase', `Alert created: {type: "missed_dose", message: "${medicine} was missed (08:00)"}`);
+    setProgress('cloud', 80, 'Alert created');
+    await sleep(600);
+
+    // FCM Push to caregiver
+    highlightComp('compFCM', true);
+    setStatus('fcmStatus', '🚨 ALERT', 'fail');
+    log('fcm', `FCM Push → Patient: "⚠️ Missed Dose — ${medicine} at 08:00"`);
+    log('fcm', `FCM Push → Caregiver: "<b style="color:#EF5350">🚨 Patient Missed a Dose! — ${medicine}</b>"`);
+    highlightComp('compCaregiver', true);
+    setStatus('caregiverStatus', '🚨 ALERT', 'fail');
+    setProgress('client', 100, 'Caregiver notified');
+    await sleep(600);
+
+    stats.missed++;
+    updateStats();
+    log('error', `<b>═══ MISSED DOSE ALERT COMPLETE ═══ Caregiver has been notified</b>`);
+
+    await sleep(2000);
+    ['compPatient','compFunctions','compAlarms','compFCM','compCaregiver'].forEach(c => highlightComp(c, false));
+    ['tierClient','tierCloud'].forEach(t => activateTier(t, false));
+    setStatus('patientStatus', 'IDLE', 'ready');
+    setStatus('functionsStatus', 'READY', 'ready');
+    setStatus('alarmsStatus', '3 ACTIVE', 'ready');
+    setStatus('fcmStatus', 'LISTEN', 'ready');
+    setStatus('caregiverStatus', 'IDLE', 'ready');
+    setProgress('client', 0, 'Ready');
+    setProgress('cloud', 0, 'Listening');
+
+    running = false;
+    disableButtons(false);
+}
+
+// ═══════════════════════════════════════════
+//  SOS SIMULATION
+// ═══════════════════════════════════════════
+async function runSOS() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    resetPackets();
+
+    log('app', `<b style="color:#EF5350">🚨 EMERGENCY SOS TRIGGERED by patient!</b>`);
+    activateTier('tierClient', true);
+    setProgress('client', 50, '🚨 SOS ACTIVE');
+    await sleep(500);
+
+    log('app', `Geolocator: Getting patient location... 19.0760° N, 72.8777° E`);
+    await sleep(600);
+
+    activateTier('tierCloud', true);
+    highlightComp('compFirestore', true);
+    log('firebase', `alerts.add({type: "sos", location: "19.0760, 72.8777", message: "Emergency triggered"})`);
+    setProgress('cloud', 60, 'SOS logged');
+    await sleep(500);
+
+    highlightComp('compFunctions', true);
+    setStatus('functionsStatus', 'SOS!', 'fail');
+    log('fcm', `Cloud Function: onAlertCreated — SOS detected!`);
+    await sleep(400);
+
+    log('fcm', `<b style="color:#EF5350">FCM EMERGENCY → All Caregivers: "🚨 SOS — Patient needs help!"</b>`);
+    log('fcm', `FCM: Location shared with emergency contacts`);
+    highlightComp('compFCM', true);
+    setStatus('fcmStatus', '🚨 SOS', 'fail');
+    setProgress('client', 100, 'Emergency sent');
+    await sleep(400);
+
+    log('app', `Calling emergency: 108 (Indian ambulance)`);
+    log('app', `<b style="color:#EF5350">═══ SOS COMPLETE ═══ All caregivers notified + 108 dialed</b>`);
+
+    stats.packets += 3;
+    updateStats();
+
+    await sleep(2000);
+    ['compFirestore','compFunctions','compFCM'].forEach(c => highlightComp(c, false));
+    ['tierClient','tierCloud'].forEach(t => activateTier(t, false));
+    setStatus('functionsStatus', 'READY', 'ready');
+    setStatus('fcmStatus', 'LISTEN', 'ready');
+    setProgress('client', 0, 'Ready');
+    setProgress('cloud', 0, 'Listening');
+
+    running = false;
+    disableButtons(false);
+}
+
+// ═══════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════
+function resetSimulator() {
+    stats = { dispensed: 0, missed: 0, packets: 0, latencies: [] };
+    currentSlot = 0;
+    updateStats();
+    resetPackets();
+    clearLog();
+    ['tierClient','tierCloud','tierEdge'].forEach(t => activateTier(t, false));
+    setStatus('stepperStatus', 'SLOT 0', 'ready');
+    setProgress('edge', 0, 'Online — Slot 0');
+}
+</script>
+
+</body>
+</html>

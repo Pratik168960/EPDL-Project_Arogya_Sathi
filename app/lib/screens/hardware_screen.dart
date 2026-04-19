@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -11,6 +13,7 @@ class HardwareScreen extends StatefulWidget {
 }
 
 class _HardwareScreenState extends State<HardwareScreen> {
+  final String _hardwareId = "esp32_dispenser_01";
   bool _isScanning = false;
 
   void _startScan() {
@@ -18,16 +21,37 @@ class _HardwareScreenState extends State<HardwareScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Scan complete. No new devices found.', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-          backgroundColor: AppColors.navy,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
-          margin: const EdgeInsets.all(16),
-        ));
+        _snack('Scan complete. ArogyaSathi Dispenser is already paired.');
       }
     });
   }
+
+  void _triggerInstantDispense() async {
+    HapticFeedback.heavyImpact();
+    try {
+      await FirebaseFirestore.instance.collection('hardware_control').doc(_hardwareId).set({
+        'force_dispense': true,
+        'dispense_medicine': 'Manual Test Pill',
+        'dispense_slot': 1,
+        'action_time': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      _snack('Instant dispense command sent to hardware! ⚙️');
+    } catch (e) {
+      _snack('Failed to send command: $e', isError: true);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+      backgroundColor: isError ? AppColors.danger : AppColors.navy,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      margin: const EdgeInsets.all(16),
+    ));
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -86,33 +110,57 @@ class _HardwareScreenState extends State<HardwareScreen> {
             // Section Header
             const SectionHeader(
               title: 'My Devices',
-              actionLabel: 'Manage',
             ),
             
-            // Connected Device 1
-            _buildDeviceCard(
-              name: 'Arogya Smart Pillbox',
-              status: 'Connected',
-              battery: 82,
-              icon: Icons.medication_outlined,
-              isActive: true,
-            ),
-            const SizedBox(height: 12),
+            // Live Firebase Data Stream for Hardware
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('hardware_control').doc(_hardwareId).snapshots(),
+              builder: (context, snapshot) {
+                String devStatus = 'Connecting...';
+                bool isActive = false;
+                String lastHeartbeat = 'Unknown';
+                
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                  devStatus = data['status'] ?? 'Unknown';
+                  lastHeartbeat = data['last_heartbeat'] ?? '';
+                  isActive = devStatus.toLowerCase() == 'online';
+                }
 
-            // Connected Device 2
-            _buildDeviceCard(
-              name: 'Vitals BP Monitor',
-              status: 'Disconnected',
-              battery: 45,
-              icon: Icons.favorite_border,
-              isActive: false,
+                return Column(
+                  children: [
+                    _buildDeviceCard(
+                      name: 'Arogya Smart Pillbox',
+                      status: isActive ? 'Online ($lastHeartbeat)' : devStatus,
+                      battery: 100, // Tied to mains power
+                      icon: Icons.medication_liquid_outlined,
+                      isActive: isActive,
+                    ),
+                    const SizedBox(height: 16),
+                    if (isActive) 
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _triggerInstantDispense,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.teal,
+                            padding: const EdgeInsets.symmetric(vertical: 16)
+                          ),
+                          icon: const Icon(Icons.bolt),
+                          label: Text('Instant Dispense (Test Slot 1)', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                  ],
+                );
+              }
             ),
+            
             const SizedBox(height: 24),
             
             const SectionHeader(
               title: 'Available Devices',
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
 
             // Add New Device Button
             SizedBox(

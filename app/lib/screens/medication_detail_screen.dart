@@ -15,11 +15,21 @@ class MedicationDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final String name = data['name'] ?? 'Medication';
     final String dosage = data['dosage'] ?? 'Prescription Dose';
-    final String indication = data['indication'] ?? 'General Management'; // Dummy for detail
+    final String indication = data['indication'] ?? 'General Management'; 
     
-    // Evaluate if it's currently taken or pending to influence the UI if needed
     final bool isTaken = data['isTaken'] ?? false;
     final String timeRaw = data['time']?.toString() ?? '--:-- AM';
+    final String meal = data['meal']?.toString() ?? 'Follow medical advice';
+    final int amountRemaining = data['amount_remaining'] ?? 0;
+    
+    // Parse time if possible
+    String amPm = 'AM';
+    String hourMin = timeRaw;
+    if (timeRaw.contains(' ')) {
+      final parts = timeRaw.split(' ');
+      hourMin = parts[0];
+      amPm = parts.length > 1 ? parts[1] : '';
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
@@ -35,12 +45,10 @@ class MedicationDetailScreen extends StatelessWidget {
                   children: [
                     _buildHeroCards(name, dosage, indication),
                     const SizedBox(height: 32),
-                    _buildDailySchedule(timeRaw, isTaken),
+                    _buildDailySchedule(timeRaw, isTaken, hourMin, amPm),
                     const SizedBox(height: 32),
-                    _buildAdherencePulse(),
-                    const SizedBox(height: 32),
-                    _buildClinicalGuidelines(),
-                    const SizedBox(height: 60), // padding
+                    _buildClinicalGuidelines(meal),
+                    const SizedBox(height: 60),
                   ],
                 ),
               ),
@@ -168,24 +176,12 @@ class MedicationDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text('18', style: GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0)),
+                    Text(amountRemaining > 0 ? '$amountRemaining' : '--', style: GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0)),
                     const SizedBox(width: 8),
                     Text('Capsules Remaining', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70)),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  height: 6,
-                  width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: 0.6,
-                    child: Container(decoration: BoxDecoration(color: const Color(0xFF006399), borderRadius: BorderRadius.circular(3))),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text('REFILL ESTIMATED IN 6 DAYS', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 1.5)),
               ],
             ),
           ),
@@ -194,7 +190,7 @@ class MedicationDetailScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildDailySchedule(String timeRaw, bool isTaken) {
+  Widget _buildDailySchedule(String timeRaw, bool isTaken, String hourMin, String amPm) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -206,11 +202,7 @@ class MedicationDetailScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _buildScheduleItem('08:00', 'AM', 'Morning Dose', isTaken ? 'Taken at 07:55 AM' : 'Pending', isTaken ? Icons.check_circle : Icons.schedule, isTaken ? const Color(0xFF006399) : const Color(0xFF44474C).withValues(alpha: 0.4), isTaken ? const Color(0xFFF1F4F7) : Colors.white, isTaken ? null : const Color(0xFF006399)),
-        const SizedBox(height: 12),
-        _buildScheduleItem(timeRaw.split(' ')[0], timeRaw.contains(' ') ? timeRaw.split(' ')[1] : 'PM', 'Scheduled Dose', 'Pending dispense', Icons.schedule, const Color(0xFF44474C).withValues(alpha: 0.4), Colors.white, const Color(0xFF006399).withValues(alpha: 0.2)),
-        const SizedBox(height: 12),
-        _buildScheduleItem('19:00', 'PM', 'Evening Dose', 'Scheduled', Icons.calendar_today, const Color(0xFF44474C).withValues(alpha: 0.4), const Color(0xFFF1F4F7), null),
+        _buildScheduleItem(hourMin, amPm, 'Scheduled Dose', isTaken ? 'Dispensed / Taken' : 'Pending dispense', isTaken ? Icons.check_circle : Icons.schedule, isTaken ? const Color(0xFF006399) : const Color(0xFFBA1A1A), isTaken ? const Color(0xFFF1F4F7) : Colors.white, isTaken ? null : const Color(0xFFBA1A1A)),
       ],
     );
   }
@@ -253,57 +245,8 @@ class MedicationDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAdherencePulse() {
-    final heights = [0.85, 0.95, 1.0, 0.60, 0.90, 0.95, 1.0];
-    final isError = [false, false, false, true, false, false, false];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Adherence Pulse', style: GoogleFonts.manrope(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF0F1C2C))),
-        const SizedBox(height: 16),
-        Container(
-          height: 160,
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F4F7),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text('96%', style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: const Color(0xFF0F1C2C))),
-                  const SizedBox(width: 4),
-                  Text('7-DAY AVG', style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF44474C).withValues(alpha: 0.6), letterSpacing: 1.0)),
-                ],
-              ),
-              const Expanded(child: SizedBox()),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (index) {
-                  return Container(
-                    width: 32,
-                    height: 80 * heights[index],
-                    decoration: BoxDecoration(
-                      color: isError[index] ? const Color(0xFFBA1A1A).withValues(alpha: 0.6) : const Color(0xFF006399).withValues(alpha: 0.8),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildClinicalGuidelines() {
+  Widget _buildClinicalGuidelines(String meal) {
+    final bool withFood = meal.toLowerCase().contains('after') || meal.toLowerCase().contains('with');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -317,8 +260,8 @@ class MedicationDetailScreen extends StatelessWidget {
           mainAxisSpacing: 16,
           childAspectRatio: 0.9,
           children: [
-            _buildGuidelineCard(Icons.restaurant, 'With Meals', 'Take during or immediately after food to reduce GI effects.', const Color(0xFF006399)),
-            _buildGuidelineCard(Icons.no_drinks, 'Avoid Alcohol', 'Risk of lactic acidosis increases significantly with intake.', const Color(0xFFBA1A1A)),
+            if (withFood) _buildGuidelineCard(Icons.restaurant, 'With Meals', 'Take during or immediately after food.', const Color(0xFF006399)),
+            if (!withFood) _buildGuidelineCard(Icons.no_meals, 'Empty Stomach', 'Take before food for better absorption.', const Color(0xFF006399)),
             _buildGuidelineCard(Icons.water_drop, 'Hydration', 'Maintain steady fluid intake throughout the day.', const Color(0xFF006399)),
             _buildGuidelineCard(Icons.info, 'Consistency', 'Take at the same time daily for maximum efficacy.', const Color(0xFF44474C)),
           ],
