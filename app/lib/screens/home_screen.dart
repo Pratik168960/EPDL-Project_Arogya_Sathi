@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../screens/medication_detail_screen.dart';
+import '../screens/book_appointment_screen.dart';
 import '../screens/adherence_history_screen.dart';
 import '../widgets/add_medicine_sheet.dart';
 
@@ -339,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _quickActionButton(Icons.event_available, 'BOOK APPT', const Color(0xFF006399), () {
                         HapticFeedback.selectionClick();
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AdherenceHistoryScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const BookAppointmentScreen()));
                       }),
                       _quickActionButton(Icons.note_add, 'ADD RECORD', const Color(0xFF006399), widget.onNavigateToRecords ?? () {}),
                       _quickActionButton(Icons.medication, 'MEDICINES', const Color(0xFF006399), widget.onNavigateToReminders ?? () {}),

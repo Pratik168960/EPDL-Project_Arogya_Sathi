@@ -860,6 +860,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── ACCOUNT SETTINGS ─────────────────────────────
   Widget _buildAccountSettings() {
     return Column(
+      key: _settingsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Account Settings',
