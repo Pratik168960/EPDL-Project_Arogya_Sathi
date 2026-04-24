@@ -14,6 +14,7 @@ import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme/app_theme.dart';
+import 'services/hardware_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,10 +120,12 @@ class _RoleRouter extends StatelessWidget {
 
         // Route based on role
         if (role == 'caregiver') {
+          HardwareSyncService.stopListening();
           return const CaregiverNavigation();
         }
 
-        // Default: patient
+        // Default: patient — start hardware sync
+        HardwareSyncService.startListening();
         return const MainNavigation();
       },
     );

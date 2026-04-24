@@ -44,8 +44,8 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                   // Calculate stats
                   int total = docs.length;
                   int taken = docs.where((doc) {
-                    final status = (doc.data() as Map<String, dynamic>)['status']?.toString() ?? '';
-                    return status == 'Taken' || status == 'dispensed';
+                    final status = (doc.data() as Map<String, dynamic>)['status']?.toString().toLowerCase() ?? '';
+                    return status.contains('taken') || status == 'dispensed';
                   }).length;
                   
                   int adherence = total > 0 ? ((taken / total) * 100).round() : 100;
@@ -68,7 +68,7 @@ class _AdherenceHistoryScreenState extends State<AdherenceHistoryScreen> {
                       'desc': 'Scheduled',
                       'time': DateFormat('hh:mm a').format(date),
                       'status': data['status'] ?? 'Unknown',
-                      'color': (data['status'] == 'Taken' || data['status'] == 'dispensed') ? const Color(0xFF006399) : const Color(0xFFBA1A1A),
+                      'color': (data['status']?.toString().toLowerCase().contains('taken') == true || data['status'] == 'dispensed') ? const Color(0xFF006399) : const Color(0xFFBA1A1A),
                     });
                   }
 

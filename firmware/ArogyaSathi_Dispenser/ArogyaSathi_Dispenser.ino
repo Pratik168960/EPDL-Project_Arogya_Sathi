@@ -331,6 +331,7 @@ void checkDispenseCommand() {
 void checkAlarmSchedules() {
   int nowH = timeClient.getHours();
   int nowM = timeClient.getMinutes();
+  int nowW = timeClient.getDay() == 0 ? 7 : timeClient.getDay();
 
   if (Firebase.Firestore.listDocuments(&fbdo, FIREBASE_PROJECT_ID, "", "alarm_schedules", 50, "", "", "", false)) {
     FirebaseJson json;
@@ -351,19 +352,29 @@ void checkAlarmSchedules() {
           FirebaseJson doc;
           doc.setJsonData(item.to<String>());
 
-          FirebaseJsonData hourD, minD, activeD, nameD, dosageD;
+          FirebaseJsonData hourD, minD, activeD, nameD, dosageD, daysD;
           doc.get(hourD,   "fields/hour/integerValue");
           doc.get(minD,    "fields/minute/integerValue");
           doc.get(activeD, "fields/is_active/booleanValue");
           doc.get(nameD,   "fields/medicine_name/stringValue");
           doc.get(dosageD, "fields/dosage/stringValue");
 
+          bool dayMatched = true;
+          doc.get(daysD, "fields/selected_days/arrayValue/values");
+          if (daysD.success) {
+            String arrayStr = daysD.to<String>();
+            String searchStr = "\"integerValue\":\"" + String(nowW) + "\"";
+            if (arrayStr.indexOf(searchStr) == -1) {
+              dayMatched = false;
+            }
+          }
+
           if (hourD.success && minD.success && activeD.success) {
             int h = hourD.to<int>();
             int m = minD.to<int>();
             bool active = activeD.to<bool>();
 
-            if (active && h == nowH && m == nowM) {
+            if (active && dayMatched && h == nowH && m == nowM) {
               String name = nameD.success ? nameD.to<String>() : "Medicine";
               String dose = dosageD.success ? dosageD.to<String>() : "";
 

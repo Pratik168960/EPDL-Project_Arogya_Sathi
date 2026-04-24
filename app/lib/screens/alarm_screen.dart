@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/notification_service.dart';
 import '../services/alarm_schedule_service.dart';
 import '../services/auth_service.dart';
+import '../services/hardware_sync_service.dart';
 import '../theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════
@@ -203,7 +204,10 @@ class AlarmScreen extends StatelessWidget {
                           debugPrint('Error updating dashboard: $e');
                         }
 
-                        // *** 4. POP BACK — PRESERVED ***
+                        // *** 5. SYNC HARDWARE POINTER → advance to next alarm ***
+                        await HardwareSyncService.markCurrentDone();
+
+                        // *** 6. POP BACK — PRESERVED ***
                         if (context.mounted) Navigator.pop(context);
                       },
                     ),

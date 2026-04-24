@@ -366,6 +366,7 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
         name: _nameCtrl.text.trim(),
         dosage: '${_dosageCtrl.text.trim()} · $_meal',
         time: _time,
+        selectedDays: [1, 2, 3, 4, 5, 6, 7],
       );
 
       // *** THE FIX: REMOVED QUOTES AROUND AuthService.currentUserId! ***
@@ -391,6 +392,7 @@ class _AddMedicineSheetState extends State<_AddMedicineSheet> {
         mealTiming: _meal,
         time: _time,
         alarmId: alarmId,
+        selectedDays: [1, 2, 3, 4, 5, 6, 7],
       );
 
       if (mounted) {

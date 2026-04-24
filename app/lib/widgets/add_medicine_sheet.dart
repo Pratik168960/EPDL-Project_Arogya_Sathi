@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/alarm_schedule_service.dart';
 import '../services/notification_service.dart';
+import '../services/hardware_sync_service.dart';
 import '../theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════
@@ -21,11 +22,16 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
   final _dosageCtrl = TextEditingController();
   String _frequency = 'Once daily';
   String _meal      = 'After Breakfast';
+  int _selectedSlot = -1;
   TimeOfDay _time   = const TimeOfDay(hour: 8, minute: 0);
   bool _saving      = false;
+  
+  bool _isSpecificDays = false;
+  final List<int> _selectedDays = [1, 2, 3, 4, 5, 6, 7];
 
   final _freqOptions = ['Once daily', 'Twice daily', 'Thrice daily', 'As needed'];
   final _mealOptions = ['Before Breakfast', 'After Breakfast', 'With Lunch', 'After Lunch', 'Evening', 'After Dinner', 'Bedtime'];
+  final _slotOptions = {-1: 'No Physical Slot', 0: 'Slot A', 1: 'Slot B', 2: 'Slot C', 3: 'Slot D'};
 
   Future<void> _save() async {
     if (_nameCtrl.text.trim().isEmpty || _dosageCtrl.text.trim().isEmpty) {
@@ -48,6 +54,7 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
         name: _nameCtrl.text.trim(),
         dosage: '${_dosageCtrl.text.trim()} · $_meal',
         time: _time,
+        selectedDays: _selectedDays,
       );
 
       await FirebaseFirestore.instance
@@ -72,7 +79,32 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
         mealTiming: _meal,
         time: _time,
         alarmId: alarmId,
+        selectedDays: _selectedDays,
       );
+
+      // Sync physical hardware slot if selected
+      if (_selectedSlot != -1) {
+        final inventoryRef = FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId!).collection('inventory');
+        final match = await inventoryRef.where('slot_index', isEqualTo: _selectedSlot).limit(1).get();
+        if (match.docs.isEmpty) {
+          await inventoryRef.add({
+            'medication_name': _nameCtrl.text.trim(),
+            'current_stock': 30,
+            'max_capacity': 30,
+            'slot_index': _selectedSlot,
+            'refill_threshold': 5,
+            'last_dispensed': FieldValue.serverTimestamp(),
+          });
+        } else {
+          await inventoryRef.doc(match.docs.first.id).update({
+            'medication_name': _nameCtrl.text.trim(),
+            'current_stock': 30,
+          });
+        }
+      }
+
+      // Sync the ESP32 "Next Alarm Pointer"
+      await HardwareSyncService.syncNow();
 
       if (mounted) {
         Navigator.pop(context);
@@ -177,6 +209,34 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                value: _isSpecificDays ? 'Specific Days' : 'Daily',
+                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Schedule Type',
+                  prefixIcon: Icon(Icons.calendar_month_outlined, size: 20, color: AppColors.textMuted),
+                ),
+                items: ['Daily', 'Specific Days'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (v) {
+                  setState(() {
+                    _isSpecificDays = v == 'Specific Days';
+                    if (!_isSpecificDays) {
+                      _selectedDays.clear();
+                      _selectedDays.addAll([1, 2, 3, 4, 5, 6, 7]);
+                    } else if (_selectedDays.length == 7) {
+                      _selectedDays.clear();
+                      _selectedDays.add(DateTime.now().weekday);
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+
+              if (_isSpecificDays) ...[
+                _buildDayPicker(),
+                const SizedBox(height: 12),
+              ],
+
+              DropdownButtonFormField<String>(
                 initialValue: _frequency,
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
@@ -197,6 +257,18 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
                 ),
                 items: _mealOptions.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                 onChanged: (v) => setState(() => _meal = v!),
+              ),
+              const SizedBox(height: 12),
+
+              DropdownButtonFormField<int>(
+                initialValue: _selectedSlot,
+                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Hardware Slot (Optional)',
+                  prefixIcon: Icon(Icons.inventory_2_outlined, size: 20, color: AppColors.textMuted),
+                ),
+                items: _slotOptions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                onChanged: (v) => setState(() => _selectedSlot = v!),
               ),
               const SizedBox(height: 20),
 
@@ -219,6 +291,46 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDayPicker() {
+    final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(7, (index) {
+        final dayVal = index + 1; // 1=Mon, 7=Sun
+        final isSelected = _selectedDays.contains(dayVal);
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                if (_selectedDays.length > 1) _selectedDays.remove(dayVal); // Prevent empty
+              } else {
+                _selectedDays.add(dayVal);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected ? AppColors.teal : AppColors.background,
+              border: Border.all(color: isSelected ? AppColors.teal : AppColors.border),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              days[index],
+              style: GoogleFonts.outfit(
+                fontSize: 14, 
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : AppColors.textMuted,
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }

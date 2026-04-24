@@ -108,13 +108,15 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final primaryPhone = _primaryPhoneCtrl.text.trim();
+      final secondaryPhone = _secondaryPhoneCtrl.text.trim();
       // Save to medical_id/emergency_contacts
       await _contactsDoc.set({
         'primary_name': _primaryNameCtrl.text.trim(),
-        'primary_phone': _primaryPhoneCtrl.text.trim(),
+        'primary_phone': primaryPhone.isNotEmpty ? '+91$primaryPhone' : '',
         'primary_relation': _primaryRelation,
         'secondary_name': _secondaryNameCtrl.text.trim(),
-        'secondary_phone': _secondaryPhoneCtrl.text.trim(),
+        'secondary_phone': secondaryPhone.isNotEmpty ? '+91$secondaryPhone' : '',
         'secondary_relation': _secondaryRelation,
         'show_on_lock_screen': _showOnLockScreen,
         'updated_at': FieldValue.serverTimestamp(),
@@ -137,7 +139,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
         if (existing.docs.isEmpty) {
           await caregiversRef.add({
             'name': primaryName,
-            'phone': _primaryPhoneCtrl.text.trim(),
+            'phone': primaryPhone.isNotEmpty ? '+91$primaryPhone' : '',
             'relation': _primaryRelation,
             'alert_missed_dose': true,
             'alert_hw_offline': false,
@@ -154,7 +156,7 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
               const Icon(Icons.check_circle, color: Colors.white, size: 18),
               const SizedBox(width: 10),
               Flexible(
-                child: Text('✅ Medical ID complete! Profile saved.',
+                child: Text('✅ Medical ID saved! Emergency contacts updated.',
                     style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               ),
             ],
@@ -418,12 +420,16 @@ class _MedicalIdContactsScreenState extends State<MedicalIdContactsScreen> {
                 child: TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
+                  maxLength: 10,
                   style: GoogleFonts.outfit(fontSize: 14, color: _S.onSurface,
                       fontFeatures: [const FontFeature.tabularFigures()]),
                   decoration: InputDecoration(
-                    hintText: '+1 (555) 000-0000',
+                    hintText: '9876543210',
                     hintStyle: GoogleFonts.outfit(fontSize: 14, color: _S.onSurfaceVariant.withValues(alpha: 0.5)),
                     prefixIcon: const Icon(Icons.call, size: 18, color: _S.onSurfaceVariant),
+                    prefixText: '+91 ',
+                    prefixStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: _S.onSurface),
+                    counterText: '',
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     border: InputBorder.none,
                   ),

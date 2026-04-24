@@ -261,17 +261,25 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
         final isLow = percent <= 10;
 
         slotWidgets.add(
-          _slotCard(
-            slot: slotLabel,
-            name: name,
-            count: stock.toInt(),
-            percent: percent.clamp(0, 100),
-            accentColor: isLow ? _S.warning : _S.secondary,
-            isWarning: isLow,
+          GestureDetector(
+            onTap: () => _showAssignSlotDialog(i, docId: match.first.id),
+            child: _slotCard(
+              slot: slotLabel,
+              name: name,
+              count: stock.toInt(),
+              percent: percent.clamp(0, 100),
+              accentColor: isLow ? _S.warning : _S.secondary,
+              isWarning: isLow,
+            ),
           ),
         );
       } else {
-        slotWidgets.add(_emptySlot(slotLabel));
+        slotWidgets.add(
+          GestureDetector(
+            onTap: () => _showAssignSlotDialog(i),
+            child: _emptySlot(slotLabel),
+          ),
+        );
       }
     }
 
@@ -434,6 +442,103 @@ class _PillInventoryScreenState extends State<PillInventoryScreen> {
         ],
       ),
     );
+  }
+
+  // ── DYNAMIC SLOT ASSIGNER ────────────────────────
+  void _showAssignSlotDialog(int slotIndex, {String? docId}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _S.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Assign Medicine to Slot ${_slotLabels[slotIndex]}', 
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+              const SizedBox(height: 16),
+              Text('Choose a medicine from your reminders to link it to this physical hardware slot.',
+                style: GoogleFonts.outfit(fontSize: 13, color: _S.onSurfaceVariant)),
+              const SizedBox(height: 24),
+              
+              FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId!).collection('medications').get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: _S.secondary));
+                  }
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return Text('No medicines found. Please add medicines in the Reminders tab first.', style: GoogleFonts.outfit(color: _S.warning));
+                  }
+                  
+                  return SizedBox(
+                    height: 250,
+                    child: ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, idx) {
+                        final med = docs[idx].data() as Map<String, dynamic>;
+                        final medName = med['name'] ?? 'Unknown';
+                        
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.medication, color: _S.secondary),
+                          title: Text(medName, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                          subtitle: Text('${med['dosage'] ?? ''} - ${med['frequency'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12)),
+                          trailing: const Icon(Icons.chevron_right, color: _S.outline),
+                          onTap: () async {
+                            Navigator.pop(ctx);
+                            _assignMedicineToSlot(slotIndex, medName, docId);
+                          },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              if (docId != null) ...[
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _inventoryRef.doc(docId).delete();
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Slot cleared')));
+                  },
+                  child: Text('Clear Slot', style: GoogleFonts.outfit(color: _S.warning, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _assignMedicineToSlot(int slotIndex, String medicationName, String? docId) async {
+    try {
+      if (docId == null) {
+        await _inventoryRef.add({
+          'medication_name': medicationName,
+          'current_stock': 30,
+          'max_capacity': 30,
+          'slot_index': slotIndex,
+          'refill_threshold': 5,
+          'last_dispensed': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await _inventoryRef.doc(docId).update({
+          'medication_name': medicationName,
+          'current_stock': 30,
+        });
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Slot assigned successfully!')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   // ── WARNING BANNER (dynamic) ─────────────────────

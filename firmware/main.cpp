@@ -218,6 +218,10 @@ void checkDispenseCommand() {
 void checkAlarmSchedules() {
   int currentHour   = timeClient.getHours();
   int currentMinute = timeClient.getMinutes();
+  
+  // NTPClient returns 0 for Sunday, 1 for Monday.
+  // Dart DateTime returns 1 for Monday, 7 for Sunday.
+  int currentWeekday = timeClient.getDay() == 0 ? 7 : timeClient.getDay();
 
   Serial.print("[Alarm Check] Current time: ");
   Serial.print(currentHour);
@@ -258,8 +262,21 @@ void checkAlarmSchedules() {
           int alarmMinute = minuteData.to<int>();
           bool isActive   = activeData.to<bool>();
 
+          // Backward compatibility: If no selected_days is provided, assume daily (true)
+          bool dayMatched = true;
+          FirebaseJsonData daysData;
+          docJson.get(daysData, "fields/selected_days/arrayValue/values");
+          if (daysData.success) {
+            String arrayStr = daysData.to<String>();
+            // Search for the JSON representation of the current weekday's integer
+            String searchStr = "\"integerValue\":\"" + String(currentWeekday) + "\"";
+            if (arrayStr.indexOf(searchStr) == -1) {
+              dayMatched = false;
+            }
+          }
+
           // Check if this alarm is due (within 1-minute window)
-          if (isActive &&
+          if (isActive && dayMatched &&
               alarmHour == currentHour &&
               alarmMinute == currentMinute) {
 

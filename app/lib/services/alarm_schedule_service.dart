@@ -35,10 +35,15 @@ class AlarmScheduleService {
 
   /// Calculate the NEXT alarm DateTime from a TimeOfDay.
   /// If the time has already passed today, it returns tomorrow.
-  static DateTime _nextAlarmTime(TimeOfDay time) {
+  static DateTime _nextAlarmTime(TimeOfDay time, List<int> selectedDays) {
+    if (selectedDays.isEmpty) selectedDays = [1, 2, 3, 4, 5, 6, 7];
     final now = DateTime.now();
     var next = DateTime(now.year, now.month, now.day, time.hour, time.minute);
     if (next.isBefore(now)) {
+      next = next.add(const Duration(days: 1));
+    }
+    // Fast-forward until the weekday matches one of the selectedDays
+    while (!selectedDays.contains(next.weekday)) {
       next = next.add(const Duration(days: 1));
     }
     return next;
@@ -52,11 +57,12 @@ class AlarmScheduleService {
     required String mealTiming,
     required TimeOfDay time,
     required int alarmId,
+    required List<int> selectedDays,
   }) async {
     final uid = AuthService.currentUserId;
     if (uid == null) return;
 
-    final nextAlarm = _nextAlarmTime(time);
+    final nextAlarm = _nextAlarmTime(time, selectedDays);
     final timeStr =
         '${time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod}:'
         '${time.minute.toString().padLeft(2, '0')} '
@@ -72,6 +78,7 @@ class AlarmScheduleService {
       'hour': time.hour,
       'minute': time.minute,
       'alarm_id': alarmId,
+      'selected_days': selectedDays,
       'next_alarm_at': Timestamp.fromDate(nextAlarm),
       'is_active': true,
       'updated_at': FieldValue.serverTimestamp(),
@@ -92,12 +99,19 @@ class AlarmScheduleService {
     final data = snapshot.data()!;
     final hour = data['hour'] as int;
     final minute = data['minute'] as int;
+    
+    final dynamic rawDays = data['selected_days'];
+    List<int> selectedDays = [1, 2, 3, 4, 5, 6, 7];
+    if (rawDays != null && rawDays is List) {
+      selectedDays = rawDays.map((e) => e as int).toList();
+    }
 
-    // Calculate the NEXT occurrence (tomorrow, same time)
+    // Calculate the NEXT occurrence based on selected days
     final now = DateTime.now();
-    final nextAlarm = DateTime(
-      now.year, now.month, now.day + 1, hour, minute,
-    );
+    var nextAlarm = DateTime(now.year, now.month, now.day + 1, hour, minute);
+    while (!selectedDays.contains(nextAlarm.weekday)) {
+      nextAlarm = nextAlarm.add(const Duration(days: 1));
+    }
 
     // Mark the alarm as inactive and store the next occurrence time
     await docRef.update({
@@ -131,8 +145,15 @@ class AlarmScheduleService {
     if (!snapshot.exists) return;
 
     final data = snapshot.data()!;
+    final dynamic rawDays = data['selected_days'];
+    List<int> selectedDays = [1, 2, 3, 4, 5, 6, 7];
+    if (rawDays != null && rawDays is List) {
+      selectedDays = rawDays.map((e) => e as int).toList();
+    }
+
     final nextAlarm = _nextAlarmTime(
       TimeOfDay(hour: data['hour'], minute: data['minute']),
+      selectedDays,
     );
 
     await docRef.update({

@@ -76,14 +76,33 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
           setState(() => _seconds = newSeconds);
           HapticFeedback.heavyImpact();
         }
-      })..addStatusListener((status) {
+      })..addStatusListener((status) async {
         if (status == AnimationStatus.completed && !_cancelled && !_alertWritten) {
           _alertWritten = true;
-          _alertsRef.add({
+          // 1. Write to patient's own alerts
+          await _alertsRef.add({
             'type': 'SOS_TRIGGERED',
+            'message': 'Emergency SOS was triggered!',
             'timestamp': FieldValue.serverTimestamp(),
             'status': 'active',
           });
+          // 2. Notify all linked caregivers 
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(_uid).get();
+          final caregiverUids = List<String>.from(userDoc.data()?['linked_caregivers'] ?? []);
+          final patientName = userDoc.data()?['name'] ?? userDoc.data()?['email']?.toString().split('@').first ?? 'Patient';
+          for (final cgUid in caregiverUids) {
+            await FirebaseFirestore.instance
+                .collection('users').doc(cgUid)
+                .collection('alerts')
+                .add({
+              'type': 'SOS_ALERT',
+              'message': '🚨 $patientName triggered an Emergency SOS!',
+              'medicine': '',
+              'patient_uid': _uid,
+              'timestamp': FieldValue.serverTimestamp(),
+              'read': false,
+            });
+          }
         }
       });
     _countdownController.forward();
@@ -489,6 +508,46 @@ class _EmergencySosScreenState extends State<EmergencySosScreen>
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+
+        // Call Primary Caregiver
+        FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          future: _caregiversRef.orderBy('created_at').limit(1).get(),
+          builder: (context, snap) {
+            final docs = snap.data?.docs ?? [];
+            if (docs.isEmpty) return const SizedBox.shrink();
+            final data = docs.first.data();
+            final name = data['name'] as String? ?? 'Caregiver';
+            final phone = data['phone'] as String? ?? '';
+            if (phone.isEmpty) return const SizedBox.shrink();
+            return GestureDetector(
+              onTap: () async {
+                HapticFeedback.heavyImpact();
+                final url = Uri.parse('tel:$phone');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: _S.error,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.phone_in_talk, size: 20, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Text('Call $name',
+                        style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
 

@@ -175,82 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(75),
-        child: Container(
-          color: const Color(0xFF0F1C2C),
-          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    if (widget.onNavigateToProfile != null) {
-                      widget.onNavigateToProfile!();
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFFE0E3E6),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.network(
-                          "https://lh3.googleusercontent.com/aida-public/AB6AXuDbTNIq-ipFd7SYWHS-LgQfO9xSx2O3OL4SQKdEMN6MSQx3qLTSnVU5Vyi64zHUVtWNqdTCaFRpMoiYHrGEvE42O1kNr-JPWzyvVYq9_zNW93HnQMgyhXpYzFR7HfhgrzXMdgLD8WTw-UgmJwvFr8FDKdhcvOauMQtLn_Reep8iEcxC5GIlaMtzxe5ul4Cus9TdQT76m60IFWMskQy7TzOfiryhYgkOeQFVbhtlNk0xkEbIbaQhoyIg_ubHxHMe4bYzHObv-b-wEw",
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.blueGrey),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _displayName,
-                            style: GoogleFonts.manrope(
-                              fontSize: 18, fontWeight: FontWeight.bold,
-                              letterSpacing: -0.5, color: const Color(0xFFF7FAFD),
-                              height: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'PATIENT ID: AS-9942',
-                            style: GoogleFonts.publicSans(
-                              fontSize: 10, fontWeight: FontWeight.normal,
-                              letterSpacing: 2.0, color: const Color(0xFFF7FAFD).withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => _showRecentNotifications(),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.0),
-                    ),
-                    child: const Icon(Icons.notifications_active, color: Color(0xFFF7FAFD), size: 24),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 92), // Equals ~16px above NavBar mirroring right-edge margin
+        padding: const EdgeInsets.only(bottom: 92),
         child: FloatingActionButton(
           onPressed: () {
             showModalBottomSheet(
@@ -277,52 +203,144 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 120),
         children: [
-          // Hero Banner
+          // ── APP HEADER ──
           Container(
             color: const Color(0xFF0F1C2C),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0x33006399),
-                border: Border.all(color: const Color(0x4D006399)),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Row(
                 children: [
-                  Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF006399),
-                      borderRadius: BorderRadius.circular(8),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      if (widget.onNavigateToProfile != null) widget.onNavigateToProfile!();
+                    },
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF006399),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.person, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.alarm, color: Colors.white, size: 30),
                   ),
-                  const SizedBox(width: 16),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Next Dose: 8:00 AM',
-                          style: GoogleFonts.manrope(
-                            fontSize: 20, fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5, color: Colors.white,
-                          ),
+                    child: Center(
+                      child: Text(
+                        'ArogyaSathi',
+                        style: GoogleFonts.manrope(
+                          fontSize: 20, fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5, color: Colors.white,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Metformin 500mg • 1 Capsule',
-                          style: GoogleFonts.publicSans(
-                            fontSize: 14, color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4), size: 24),
+                  GestureDetector(
+                    onTap: () => _showRecentNotifications(),
+                    child: const Icon(Icons.notifications_active, color: Color(0xFFF7FAFD), size: 24),
+                  ),
                 ],
               ),
+            ),
+          ),
+
+          // ── LIVE NEXT DOSE BANNER ──
+          Container(
+            color: const Color(0xFF0F1C2C),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(AuthService.currentUserId)
+                  .collection('medications')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String nextDoseTime = 'No medications';
+                String nextMedName = 'Add a medicine to get started';
+
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  final now = DateTime.now();
+                  DateTime? earliest;
+                  String? earliestName;
+                  String? earliestDosage;
+
+                  for (final doc in snapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final timeStr = data['time'] as String?;
+                    final name = data['name'] as String? ?? 'Medicine';
+                    final dosage = data['dosage'] as String? ?? '';
+                    if (timeStr == null) continue;
+
+                    // Parse "8:00 AM" style
+                    final match = RegExp(r'(\d{1,2}):(\d{2})\s*(AM|PM)', caseSensitive: false).firstMatch(timeStr);
+                    if (match == null) continue;
+                    var h = int.parse(match.group(1)!);
+                    final m = int.parse(match.group(2)!);
+                    final period = match.group(3)!.toUpperCase();
+                    if (period == 'PM' && h != 12) h += 12;
+                    if (period == 'AM' && h == 12) h = 0;
+
+                    var candidate = DateTime(now.year, now.month, now.day, h, m);
+                    if (candidate.isBefore(now)) candidate = candidate.add(const Duration(days: 1));
+
+                    if (earliest == null || candidate.isBefore(earliest)) {
+                      earliest = candidate;
+                      earliestName = name;
+                      earliestDosage = dosage;
+                    }
+                  }
+
+                  if (earliest != null) {
+                    final hour = earliest.hour;
+                    final minute = earliest.minute;
+                    final ampm = hour >= 12 ? 'PM' : 'AM';
+                    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+                    nextDoseTime = 'Next Dose: $h12:${minute.toString().padLeft(2, '0')} $ampm';
+                    nextMedName = '${earliestName ?? 'Medicine'} • ${earliestDosage ?? ''}';
+                  }
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0x33006399),
+                    border: Border.all(color: const Color(0x4D006399)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF006399),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.alarm, color: Colors.white, size: 30),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(nextDoseTime,
+                              style: GoogleFonts.manrope(
+                                fontSize: 20, fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5, color: Colors.white,
+                              )),
+                            const SizedBox(height: 2),
+                            Text(nextMedName,
+                              style: GoogleFonts.publicSans(
+                                fontSize: 14, color: Colors.white.withValues(alpha: 0.7),
+                              )),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4), size: 24),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           

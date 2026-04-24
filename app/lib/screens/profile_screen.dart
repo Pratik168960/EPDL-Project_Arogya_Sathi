@@ -6,13 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import 'hardware_screen.dart';
 import 'emergency_sos_screen.dart';
 import 'medical_id_basic_health_screen.dart';
 import 'analytics_screen.dart';
 import 'care_team_screen.dart';
 import 'pill_inventory_screen.dart';
-import 'seed_data_screen.dart';
+import '../services/hardware_sync_service.dart';
 
 // ═══════════════════════════════════════════════
 //  Stitch Design Tokens
@@ -60,55 +59,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final GlobalKey _settingsKey = GlobalKey();
 
   // 2. Edit Profile — updates Firebase Auth displayName + Firestore
-  void _showEditProfileDialog() {
-    final controller = TextEditingController(text: _authUser?.displayName ?? '');
+  void _showEditProfileDialog() async {
+    // Pre-load existing data from Firestore
+    final doc = await FirebaseFirestore.instance.collection('users').doc(_uid).get();
+    final data = doc.data() ?? {};
+
+    final nameCtrl = TextEditingController(text: _authUser?.displayName ?? data['name'] ?? '');
+    final phoneCtrl = TextEditingController(text: data['phone'] ?? '');
+    final ageCtrl = TextEditingController(text: data['age']?.toString() ?? '');
+    String gender = data['gender'] ?? 'Prefer not to say';
+
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _S.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Edit Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: _S.primaryContainer)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              style: GoogleFonts.outfit(color: _S.primaryContainer),
-              decoration: InputDecoration(
-                labelText: 'Display Name',
-                labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
-                filled: true,
-                fillColor: _S.surfContainerHighest,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _S.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Edit Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: _S.primaryContainer)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _profileField(nameCtrl, 'Full Name', Icons.person_outline),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  style: GoogleFonts.outfit(color: _S.primaryContainer),
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
+                    prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                    prefixText: '+91 ',
+                    prefixStyle: GoogleFonts.outfit(color: _S.primaryContainer, fontWeight: FontWeight.w600),
+                    counterText: '',
+                    filled: true,
+                    fillColor: _S.surfContainerHighest,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _profileField(ageCtrl, 'Age', Icons.cake_outlined, keyboardType: TextInputType.number, maxLength: 3),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: gender,
+                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: _S.primaryContainer),
+                  decoration: InputDecoration(
+                    labelText: 'Gender',
+                    labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
+                    prefixIcon: const Icon(Icons.wc_outlined, size: 20),
+                    filled: true,
+                    fillColor: _S.surfContainerHighest,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  ),
+                  items: ['Male', 'Female', 'Other', 'Prefer not to say']
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => gender = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.outfit(color: _S.onSurfaceVariant)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _S.secondary),
+              onPressed: () async {
+                final newName = nameCtrl.text.trim();
+                if (newName.isEmpty) return;
+                final phone = phoneCtrl.text.trim();
+                if (phone.isNotEmpty && phone.length != 10) {
+                  _snack('Phone must be exactly 10 digits');
+                  return;
+                }
+                try {
+                  await _authUser?.updateDisplayName(newName);
+                  await FirebaseFirestore.instance.collection('users').doc(_uid).update({
+                    'name': newName,
+                    'phone': phone.isNotEmpty ? '+91$phone' : '',
+                    'age': int.tryParse(ageCtrl.text.trim()) ?? 0,
+                    'gender': gender,
+                  });
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    setState(() {});
+                    _snack('Profile updated!');
+                  }
+                } catch (e) {
+                  if (mounted) _snack('Error: $e');
+                }
+              },
+              child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.outfit(color: _S.onSurfaceVariant)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _S.secondary),
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isEmpty) return;
-              try {
-                await _authUser?.updateDisplayName(newName);
-                await FirebaseFirestore.instance.collection('users').doc(_uid).update({'name': newName});
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  setState(() {});
-                  _snack('Profile updated!');
-                }
-              } catch (e) {
-                if (mounted) _snack('Error: $e');
-              }
-            },
-            child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-          ),
-        ],
+      ),
+    );
+  }
+
+  Widget _profileField(TextEditingController ctrl, String label, IconData icon, {TextInputType? keyboardType, int? maxLength}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      style: GoogleFonts.outfit(color: _S.primaryContainer),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.outfit(color: _S.onSurfaceVariant),
+        prefixIcon: Icon(icon, size: 20),
+        counterText: '',
+        filled: true,
+        fillColor: _S.surfContainerHighest,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
     );
   }
@@ -876,15 +943,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             children: [
               _settingsItem(
-                icon: Icons.devices_other_outlined,
-                label: 'Manage Hardware',
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const HardwareScreen()));
-                },
-              ),
-              _divider(),
-              _settingsItem(
                 icon: Icons.inventory_2_outlined,
                 label: 'Pill Inventory',
                 onTap: () {
@@ -944,15 +1002,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   HapticFeedback.selectionClick();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicalIdBasicHealthScreen()));
-                },
-              ),
-              _divider(),
-              _settingsItem(
-                icon: Icons.dataset_outlined,
-                label: 'Seed Demo Data',
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SeedDataScreen()));
                 },
               ),
               _divider(),
@@ -1025,6 +1074,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () async {
               Navigator.pop(ctx);
+              HardwareSyncService.stopListening();
               await AuthService.logOut();
             },
             child: Text('Logout', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),

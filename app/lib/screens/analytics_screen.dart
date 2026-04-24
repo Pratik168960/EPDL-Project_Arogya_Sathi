@@ -81,30 +81,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         final docs = snapshot.data?.docs ?? [];
 
                         // ── CALCULATE STATS ─────────────
-                        final int totalLogs = docs.length;
+                        final now = DateTime.now();
+                        final int rangeDays = _selectedTab == 0 ? 7 : 30;
+                        final cutoff = now.subtract(Duration(days: rangeDays));
+
+                        // Filter to selected range
+                        final rangeDocs = docs.where((doc) {
+                          final data = doc.data();
+                          final takenAt = data['taken_at'];
+                          if (takenAt == null || takenAt is! Timestamp) return false;
+                          return takenAt.toDate().isAfter(cutoff);
+                        }).toList();
+
+                        final int totalLogs = rangeDocs.length;
                         int takenCount = 0;
                         int missedCount = 0;
 
-                        // For the 7-day bar chart
-                        final now = DateTime.now();
-                        final Map<int, _DayStats> last7Days = {};
-                        for (int i = 6; i >= 0; i--) {
+                        // For the bar chart
+                        final Map<int, _DayStats> chartDays = {};
+                        for (int i = rangeDays - 1; i >= 0; i--) {
                           final day = now.subtract(Duration(days: i));
-                          last7Days[_dayKey(day)] = _DayStats();
+                          chartDays[_dayKey(day)] = _DayStats();
                         }
 
                         // Current streak tracking
                         int currentStreak = 0;
                         bool streakBroken = false;
 
-                        // Process all docs
-                        for (final doc in docs) {
+                        // Process range docs only
+                        for (final doc in rangeDocs) {
                           final data = doc.data();
                           final status = (data['status'] ?? '') as String;
                           final takenAt = data['taken_at'];
 
-                          // Count taken vs missed
-                          // "Taken On Time" or any status containing "Taken" = taken
                           final isTaken = status.toLowerCase().contains('taken');
                           if (isTaken) {
                             takenCount++;
@@ -112,15 +121,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             missedCount++;
                           }
 
-                          // Populate 7-day chart
+                          // Populate chart
                           if (takenAt != null && takenAt is Timestamp) {
                             final date = takenAt.toDate();
                             final key = _dayKey(date);
-                            if (last7Days.containsKey(key)) {
+                            if (chartDays.containsKey(key)) {
                               if (isTaken) {
-                                last7Days[key]!.taken++;
+                                chartDays[key]!.taken++;
                               } else {
-                                last7Days[key]!.missed++;
+                                chartDays[key]!.missed++;
                               }
                             }
                           }
@@ -161,17 +170,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         // Build bar chart data
                         final List<_BarData> barData = [];
-                        for (int i = 6; i >= 0; i--) {
-                          final day = now.subtract(Duration(days: i));
+                        // Show last 7 bars regardless of range
+                        final int barCount = _selectedTab == 0 ? 7 : 7;
+                        final int step = _selectedTab == 0 ? 1 : (rangeDays / 7).ceil();
+                        for (int i = barCount - 1; i >= 0; i--) {
+                          final dayOffset = i * step;
+                          final day = now.subtract(Duration(days: dayOffset));
                           final key = _dayKey(day);
-                          final stats = last7Days[key]!;
-                          final total = stats.taken + stats.missed;
-                          final label = DateFormat('E').format(day).toUpperCase().substring(0, 3);
+                          // Aggregate stats for the step window
+                          int stepTaken = 0, stepMissed = 0;
+                          for (int s = 0; s < step; s++) {
+                            final k = _dayKey(now.subtract(Duration(days: dayOffset + s)));
+                            if (chartDays.containsKey(k)) {
+                              stepTaken += chartDays[k]!.taken;
+                              stepMissed += chartDays[k]!.missed;
+                            }
+                          }
+                          final total = stepTaken + stepMissed;
+                          final label = _selectedTab == 0
+                              ? DateFormat('E').format(day).toUpperCase().substring(0, 3)
+                              : 'W${barCount - i}';
                           if (total > 0) {
-                            final ratio = stats.taken / total;
-                            barData.add(_BarData(label, ratio.clamp(0.05, 1.0), stats.missed == 0));
+                            final ratio = stepTaken / total;
+                            barData.add(_BarData(label, ratio.clamp(0.05, 1.0), stepMissed == 0));
                           } else {
-                            barData.add(_BarData(label, 0.05, true)); // Empty day — tiny bar
+                            barData.add(_BarData(label, 0.05, true));
                           }
                         }
 
@@ -286,31 +309,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.maybePop(context),
-                child: const Icon(Icons.menu, color: _S.secondary, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Text('Analytics',
+          GestureDetector(
+            onTap: () => Navigator.maybePop(context),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.arrow_back, color: _S.secondary, size: 24),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text('Analytics',
                   style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
                       color: _S.primaryContainer, letterSpacing: -0.3)),
-            ],
-          ),
-          Text('ArogyaSathi',
-              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
-                  color: _S.primaryContainer, letterSpacing: -0.5)),
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              color: _S.surfContainerHighest,
-              shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person, size: 18, color: _S.onSurfaceVariant),
           ),
+          const SizedBox(width: 40), // Balance the back arrow
         ],
       ),
     );
