@@ -23,7 +23,10 @@ class AlarmScreen extends StatelessWidget {
     final parts  = payload.split('|');
     final name   = parts.isNotEmpty ? parts[0] : 'Your Medicine';
     final dosage = parts.length > 1  ? parts[1] : '';
-    final payloadId = parts.length > 2 ? int.tryParse(parts[2]) : null;
+    final uniqueId = parts.length > 2 ? int.tryParse(parts[2]) : null;
+    // The notification uses uniqueId = alarmId * 10 + day
+    // Extract the base alarmId by integer-dividing by 10
+    final baseAlarmId = uniqueId != null ? uniqueId ~/ 10 : null;
 
     final now        = DateTime.now();
     final timeString = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -141,74 +144,91 @@ class AlarmScreen extends StatelessWidget {
                       onPressed: () async {
                         HapticFeedback.mediumImpact();
 
-                        // *** 1. CANCEL ALL ALARMS — PRESERVED ***
-                        NotificationService.cancelAll();
-
-                        // *** 2. IoT HARDWARE TRIGGER — PRESERVED EXACTLY ***
                         try {
-                          await FirebaseFirestore.instance
-                              .collection('hardware_control')
-                              .doc('esp32_dispenser_01')
-                              .set({
-                                'dispense_now': true,
-                                'medicine_dispensed': name,
-                                'timestamp': FieldValue.serverTimestamp(),
-                              }, SetOptions(merge: true));
-                          debugPrint('Hardware trigger sent to Firebase!');
-                        } catch (e) {
-                          debugPrint('Error sending to hardware: $e');
-                        }
-
-                        // *** 3. PERMANENT HISTORY LOG — PRESERVED EXACTLY ***
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(AuthService.currentUserId!)
-                              .collection('history')
-                              .add({
-                                'name': name,
-                                'dosage': dosage,
-                                'taken_at': FieldValue.serverTimestamp(),
-                                'status': 'Taken On Time',
-                              });
-                          debugPrint('History saved successfully!');
-                        } catch (e) {
-                          debugPrint('Error saving history: $e');
-                        }
-                        // *** 3b. ROTATE ALARM SCHEDULE — delete fired, create next ***
-                        try {
-                          if (payloadId != null) {
-                            await AlarmScheduleService.onAlarmFired(payloadId);
+                          // *** 1. CANCEL ALL ALARMS ***
+                          try {
+                            await NotificationService.cancelAll();
+                            if (baseAlarmId != null) {
+                              await NotificationService.cancelSpecificAlarm(baseAlarmId);
+                            }
+                          } catch (e) {
+                            debugPrint('Error cancelling alarms: $e');
                           }
-                          debugPrint('Alarm schedule rotated to next occurrence!');
-                        } catch (e) {
-                          debugPrint('Error rotating alarm schedule: $e');
-                        }
-                        
-                        // *** 4. UPDATE DASHBOARD IS_TAKEN STATUS BY ALARM ID ***
-                        try {
-                          if (payloadId != null) {
-                            final querySnapshot = await FirebaseFirestore.instance
+
+                          // *** 2. IoT HARDWARE TRIGGER ***
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('hardware_control')
+                                .doc('esp32_dispenser_01')
+                                .set({
+                                  'dispense_now': true,
+                                  'medicine_dispensed': name,
+                                  'timestamp': FieldValue.serverTimestamp(),
+                                }, SetOptions(merge: true));
+                            debugPrint('Hardware trigger sent to Firebase!');
+                          } catch (e) {
+                            debugPrint('Error sending to hardware: $e');
+                          }
+
+                          // *** 3. PERMANENT HISTORY LOG ***
+                          try {
+                            await FirebaseFirestore.instance
                                 .collection('users')
                                 .doc(AuthService.currentUserId!)
-                                .collection('medications')
-                                .where('alarm_id', isEqualTo: payloadId)
-                                .get();
-                              
-                            for (var doc in querySnapshot.docs) {
-                              await doc.reference.update({'isTaken': true});
-                            }
+                                .collection('history')
+                                .add({
+                                  'name': name,
+                                  'dosage': dosage,
+                                  'taken_at': FieldValue.serverTimestamp(),
+                                  'status': 'Taken On Time',
+                                });
+                            debugPrint('History saved successfully!');
+                          } catch (e) {
+                            debugPrint('Error saving history: $e');
                           }
-                          debugPrint('Dashboard UI updated with checkmark!');
+
+                          // *** 3b. ROTATE ALARM SCHEDULE ***
+                          try {
+                            if (baseAlarmId != null) {
+                              await AlarmScheduleService.onAlarmFired(baseAlarmId);
+                            }
+                            debugPrint('Alarm schedule rotated to next occurrence!');
+                          } catch (e) {
+                            debugPrint('Error rotating alarm schedule: $e');
+                          }
+
+                          // *** 4. UPDATE DASHBOARD IS_TAKEN STATUS BY ALARM ID ***
+                          try {
+                            if (baseAlarmId != null) {
+                              final querySnapshot = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(AuthService.currentUserId!)
+                                  .collection('medications')
+                                  .where('alarm_id', isEqualTo: baseAlarmId)
+                                  .get();
+                                
+                              for (var doc in querySnapshot.docs) {
+                                await doc.reference.update({'isTaken': true});
+                              }
+                            }
+                            debugPrint('Dashboard UI updated with checkmark!');
+                          } catch (e) {
+                            debugPrint('Error updating dashboard: $e');
+                          }
+
+                          // *** 5. SYNC HARDWARE POINTER ***
+                          try {
+                            await HardwareSyncService.markCurrentDone();
+                          } catch (e) {
+                            debugPrint('Error marking hardware done: $e');
+                          }
+
                         } catch (e) {
-                          debugPrint('Error updating dashboard: $e');
+                          debugPrint('Fatal error in alarm processing: $e');
+                        } finally {
+                          // *** 6. POP BACK (GUARANTEED) ***
+                          if (context.mounted) Navigator.pop(context);
                         }
-
-                        // *** 5. SYNC HARDWARE POINTER → advance to next alarm ***
-                        await HardwareSyncService.markCurrentDone();
-
-                        // *** 6. POP BACK — PRESERVED ***
-                        if (context.mounted) Navigator.pop(context);
                       },
                     ),
                   ),

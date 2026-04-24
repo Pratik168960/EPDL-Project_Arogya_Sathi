@@ -30,6 +30,7 @@ class NotificationService {
   // ... (rest of your code stays exactly the same) ...
 
     tz.initializeTimeZones(); // Required for scheduling future alarms
+    tz.setLocalLocation(tz.getLocation('Asia/Kolkata')); // India timezone
 
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initSettings = InitializationSettings(android: androidSettings);

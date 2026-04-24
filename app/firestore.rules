@@ -64,10 +64,16 @@ service cloud.firestore {
       }
 
       // ── SOS Alerts ─────────────────────────────
-      // Owner: read/write. Caregiver: read only
+      // Owner: read/write. Caregiver: read + write (SOS alerts push)
       match /alerts/{docId} {
         allow read: if isOwner(userId) || isLinkedCaregiver(userId);
-        allow write: if isOwner(userId);
+        allow write: if isOwner(userId) || isLinkedCaregiver(userId);
+      }
+
+      // ── Hardware Pointer (ESP32 sync) ──────────
+      // Owner: read/write (HardwareSyncService writes current_alarm here)
+      match /hardware/{docId} {
+        allow read, write: if isOwner(userId);
       }
 
       // ── Appointments ───────────────────────────

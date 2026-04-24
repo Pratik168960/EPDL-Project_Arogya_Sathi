@@ -26,10 +26,13 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await AuthService.signUp(_emailCtrl.text.trim(), _passwordCtrl.text.trim());
       }
-      // Note: We don't need to navigate manually! The Auth Router in main.dart handles it.
+      // Auth state change detected by StreamBuilder in main.dart — it will
+      // replace LoginScreen with _RoleRouter automatically.
+      // Reset loading so the UI doesn't hang if there's a micro-delay.
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().split(']').last), backgroundColor: AppColors.danger),
         );

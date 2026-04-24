@@ -31,7 +31,7 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
 
   final _freqOptions = ['Once daily', 'Twice daily', 'Thrice daily', 'As needed'];
   final _mealOptions = ['Before Breakfast', 'After Breakfast', 'With Lunch', 'After Lunch', 'Evening', 'After Dinner', 'Bedtime'];
-  final _slotOptions = {-1: 'No Physical Slot', 0: 'Slot A', 1: 'Slot B', 2: 'Slot C', 3: 'Slot D'};
+
 
   Future<void> _save() async {
     if (_nameCtrl.text.trim().isEmpty || _dosageCtrl.text.trim().isEmpty) {
@@ -260,15 +260,27 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
               ),
               const SizedBox(height: 12),
 
-              DropdownButtonFormField<int>(
-                initialValue: _selectedSlot,
-                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Hardware Slot (Optional)',
-                  prefixIcon: Icon(Icons.inventory_2_outlined, size: 20, color: AppColors.textMuted),
+              GestureDetector(
+                onTap: _showSlotPicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.inventory_2_outlined, size: 20, color: AppColors.textMuted),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedSlot == -1 ? 'No Physical Slot' : 'Slot ${_selectedSlot + 1}',
+                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
+                  ]),
                 ),
-                items: _slotOptions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-                onChanged: (v) => setState(() => _selectedSlot = v!),
               ),
               const SizedBox(height: 20),
 
@@ -333,4 +345,167 @@ class _AddMedicineSheetState extends State<AddMedicineSheet> {
       }),
     );
   }
+
+  void _showSlotPicker() async {
+    // Fetch currently occupied slots
+    final inventorySnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(AuthService.currentUserId!)
+        .collection('inventory')
+        .get();
+    final occupiedSlots = <int, String>{};
+    for (final doc in inventorySnap.docs) {
+      final data = doc.data();
+      final idx = (data['slot_index'] ?? -1) as int;
+      if (idx >= 0) {
+        occupiedSlots[idx] = data['medication_name'] as String? ?? '?';
+      }
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(width: 36, height: 4,
+                    decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 16),
+              Text('Select Dispenser Slot',
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const SizedBox(height: 4),
+              Text('23 slots available on the circular disc',
+                  style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+
+              // No Slot option
+              GestureDetector(
+                onTap: () {
+                  setState(() => _selectedSlot = -1);
+                  Navigator.pop(ctx);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedSlot == -1 ? AppColors.teal.withValues(alpha: 0.1) : AppColors.background,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedSlot == -1 ? AppColors.teal : AppColors.border,
+                      width: _selectedSlot == -1 ? 2 : 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('No Physical Slot',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14, fontWeight: FontWeight.w600,
+                        color: _selectedSlot == -1 ? AppColors.teal : AppColors.textMuted,
+                      )),
+                ),
+              ),
+
+              // 23-slot grid (5 columns)
+              SizedBox(
+                height: 260,
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: 23,
+                  itemBuilder: (context, i) {
+                    final isOccupied = occupiedSlots.containsKey(i);
+                    final isCurrent = _selectedSlot == i;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedSlot = i);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? AppColors.teal
+                              : (isOccupied
+                                  ? const Color(0xFFE8F5E9)
+                                  : AppColors.background),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isCurrent
+                                ? AppColors.teal
+                                : (isOccupied
+                                    ? const Color(0xFF10B981)
+                                    : AppColors.border),
+                            width: isCurrent ? 2.5 : 1,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('${i + 1}',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16, fontWeight: FontWeight.w700,
+                                  color: isCurrent ? Colors.white : (isOccupied ? const Color(0xFF10B981) : AppColors.textPrimary),
+                                )),
+                            if (isOccupied)
+                              Icon(Icons.medication, size: 12,
+                                  color: isCurrent ? Colors.white : const Color(0xFF10B981)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Legend
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _legendDot(const Color(0xFFE8F5E9), 'Occupied'),
+                  const SizedBox(width: 16),
+                  _legendDot(AppColors.background, 'Available'),
+                  const SizedBox(width: 16),
+                  _legendDot(AppColors.teal, 'Selected'),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10, height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border, width: 0.5),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: GoogleFonts.outfit(fontSize: 10, color: AppColors.textMuted)),
+      ],
+    );
+  }
 }
+
